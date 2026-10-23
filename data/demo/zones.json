@@ -1,0 +1,36 @@
+{
+  "Customer Interaction": [
+    "p_after_A1",
+    "p_after_A2",
+    "p_after_A3",
+    "p_after_A4A5",
+    "p_after_A6"
+  ],
+  "Payment & Risk": [
+    "p_after_B1",
+    "p_after_B_method",
+    "p_after_B5",
+    "p_after_verification",
+    "p_paid",
+    "p_payment_failed"
+  ],
+  "Fulfillment": [
+    "p_after_C1",
+    "p_pick_ready",
+    "p_print_ready",
+    "p_after_pick",
+    "p_after_print",
+    "p_after_parallel",
+    "p_after_pack"
+  ],
+  "Quality": [
+    "p_qc_entry",
+    "p_qc_done"
+  ],
+  "Logistics": [
+    "p_after_E1",
+    "p_after_E2",
+    "p_after_E3",
+    "p_after_E4"
+  ]
+}

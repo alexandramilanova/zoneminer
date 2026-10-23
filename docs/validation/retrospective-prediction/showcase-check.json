@@ -1,0 +1,129 @@
+{
+  "windows": 35,
+  "positive": 8,
+  "negative": 27,
+  "models": [
+    {
+      "model_label": "Decision tree",
+      "mean_f1": 0.0,
+      "mean_precision": 0.0,
+      "mean_recall": 0.0,
+      "valid_folds": 5,
+      "evaluation": {
+        "n_rows": 25,
+        "positive_rows": 5,
+        "positive_rate": 0.2,
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "confusion": {
+          "tn": 19,
+          "fp": 1,
+          "fn": 5,
+          "tp": 0
+        }
+      }
+    },
+    {
+      "model_label": "Random forest",
+      "mean_f1": 0.0,
+      "mean_precision": 0.0,
+      "mean_recall": 0.0,
+      "valid_folds": 5,
+      "evaluation": {
+        "n_rows": 25,
+        "positive_rows": 5,
+        "positive_rate": 0.2,
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "confusion": {
+          "tn": 15,
+          "fp": 5,
+          "fn": 5,
+          "tp": 0
+        }
+      }
+    },
+    {
+      "model_label": "Hist gradient boosting",
+      "mean_f1": 0.0,
+      "mean_precision": 0.0,
+      "mean_recall": 0.0,
+      "valid_folds": 5,
+      "evaluation": {
+        "n_rows": 25,
+        "positive_rows": 5,
+        "positive_rate": 0.2,
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "confusion": {
+          "tn": 15,
+          "fp": 5,
+          "fn": 5,
+          "tp": 0
+        }
+      }
+    }
+  ],
+  "baselines": [
+    {
+      "model": "Training-majority baseline",
+      "n_rows": 25,
+      "positive_rows": 5,
+      "positive_rate": 0.2,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "confusion": {
+        "tn": 15,
+        "fp": 5,
+        "fn": 5,
+        "tp": 0
+      }
+    },
+    {
+      "model": "Persistence: current reconstructed condition",
+      "n_rows": 25,
+      "positive_rows": 5,
+      "positive_rate": 0.2,
+      "f1": 0.9090909090909091,
+      "precision": 0.8333333333333334,
+      "recall": 1.0,
+      "confusion": {
+        "tn": 19,
+        "fp": 1,
+        "fn": 0,
+        "tp": 5
+      }
+    }
+  ],
+  "reconstruction": {
+    "source": "Existing complete-trace alignment replay; original upload and descriptive artifacts unchanged.",
+    "timing": "Model and silent moves inherit the replay convention: previous reconstructed time + 1 microsecond; subsequent observed times are clamped if necessary. These are inferred times.",
+    "limitations": "Optimal alignments may be nonunique. Model moves insert inferred firings; log-only moves do not fire model transitions. This is not a uniquely observed token history.",
+    "aligned_cases": 1829,
+    "log_only_moves": 1728,
+    "visible_model_moves": 584,
+    "cases_with_visible_deviation": 1102
+  },
+  "condition": {
+    "zone": "Payment & Risk",
+    "metric": "token_enter",
+    "threshold": 200,
+    "operator": ">=",
+    "horizon": 1,
+    "timeframe": "D",
+    "history_lags": 3,
+    "predictor_metrics": [
+      "token_enter",
+      "token_exit",
+      "token_present_end",
+      "token_avg_present_window",
+      "token_netflow",
+      "token_avg_duration_completed"
+    ]
+  },
+  "interpretation": "Fixed exploratory software check, not an unbiased performance benchmark or a validated live forecast."
+}

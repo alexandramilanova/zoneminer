@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pnml>
+  <net id="capacity_cliff" type="http://www.pnml.org/version-2009/grammar/pnmlcoremodel">
+    <name>
+      <text>capacity_cliff</text>
+    </name>
+    <page id="n0">
+      <place id="p_after_Intake_Order">
+        <name>
+          <text>p_after_Intake_Order</text>
+        </name>
+      </place>
+      <place id="p_end">
+        <name>
+          <text>p_end</text>
+        </name>
+      </place>
+      <place id="p_start">
+        <name>
+          <text>p_start</text>
+        </name>
+        <initialMarking>
+          <text>1</text>
+        </initialMarking>
+      </place>
+      <place id="p_after_Assemble_Order">
+        <name>
+          <text>p_after_Assemble_Order</text>
+        </name>
+      </place>
+      <place id="p_after_Inspect_Order">
+        <name>
+          <text>p_after_Inspect_Order</text>
+        </name>
+      </place>
+      <place id="p_after_Prepare_Order">
+        <name>
+          <text>p_after_Prepare_Order</text>
+        </name>
+      </place>
+      <transition id="t_Intake_Order">
+        <name>
+          <text>Intake_Order</text>
+        </name>
+      </transition>
+      <transition id="t_Inspect_Order">
+        <name>
+          <text>Inspect_Order</text>
+        </name>
+      </transition>
+      <transition id="t_Assemble_Order">
+        <name>
+          <text>Assemble_Order</text>
+        </name>
+      </transition>
+      <transition id="t_Prepare_Order">
+        <name>
+          <text>Prepare_Order</text>
+        </name>
+      </transition>
+      <transition id="t_Dispatch_Order">
+        <name>
+          <text>Dispatch_Order</text>
+        </name>
+      </transition>
+      <arc id="2153022207968" source="p_start" target="t_Intake_Order"/>
+      <arc id="2153022208192" source="p_after_Intake_Order" target="t_Prepare_Order"/>
+      <arc id="2153022208640" source="p_after_Assemble_Order" target="t_Inspect_Order"/>
+      <arc id="2153022208864" source="p_after_Inspect_Order" target="t_Dispatch_Order"/>
+      <arc id="2153022208304" source="t_Prepare_Order" target="p_after_Prepare_Order"/>
+      <arc id="2153022208080" source="p_after_Prepare_Order" target="t_Assemble_Order"/>
+      <arc id="2153022207856" source="t_Intake_Order" target="p_after_Intake_Order"/>
+      <arc id="2153022207408" source="t_Assemble_Order" target="p_after_Assemble_Order"/>
+      <arc id="2153022208752" source="t_Inspect_Order" target="p_after_Inspect_Order"/>
+      <arc id="2153022208976" source="t_Dispatch_Order" target="p_end"/>
+    </page>
+    <finalmarkings>
+      <marking>
+        <place idref="p_end">
+          <text>1</text>
+        </place>
+      </marking>
+    </finalmarkings>
+  </net>
+</pnml>

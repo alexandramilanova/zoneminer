@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pnml>
+  <net id="express_lane" type="http://www.pnml.org/version-2009/grammar/pnmlcoremodel">
+    <name>
+      <text>express_lane</text>
+    </name>
+    <page id="n0">
+      <place id="p_start">
+        <name>
+          <text>p_start</text>
+        </name>
+        <initialMarking>
+          <text>1</text>
+        </initialMarking>
+      </place>
+      <place id="p_after_Classify_Order">
+        <name>
+          <text>p_after_Classify_Order</text>
+        </name>
+      </place>
+      <place id="p_end">
+        <name>
+          <text>p_end</text>
+        </name>
+      </place>
+      <place id="p_after_Register_Order">
+        <name>
+          <text>p_after_Register_Order</text>
+        </name>
+      </place>
+      <place id="p_after_Process_Order">
+        <name>
+          <text>p_after_Process_Order</text>
+        </name>
+      </place>
+      <transition id="t_Register_Order">
+        <name>
+          <text>Register_Order</text>
+        </name>
+      </transition>
+      <transition id="t_Ship_Order">
+        <name>
+          <text>Ship_Order</text>
+        </name>
+      </transition>
+      <transition id="t_Process_Order">
+        <name>
+          <text>Process_Order</text>
+        </name>
+      </transition>
+      <transition id="t_Classify_Order">
+        <name>
+          <text>Classify_Order</text>
+        </name>
+      </transition>
+      <arc id="2153022718368" source="p_start" target="t_Register_Order"/>
+      <arc id="2153022180704" source="p_after_Classify_Order" target="t_Process_Order"/>
+      <arc id="2153021422272" source="t_Ship_Order" target="p_end"/>
+      <arc id="2153022768144" source="p_after_Register_Order" target="t_Classify_Order"/>
+      <arc id="2153022180400" source="t_Classify_Order" target="p_after_Classify_Order"/>
+      <arc id="2153022767504" source="t_Register_Order" target="p_after_Register_Order"/>
+      <arc id="2153021534960" source="t_Process_Order" target="p_after_Process_Order"/>
+      <arc id="2153021422000" source="p_after_Process_Order" target="t_Ship_Order"/>
+    </page>
+    <finalmarkings>
+      <marking>
+        <place idref="p_end">
+          <text>1</text>
+        </place>
+      </marking>
+    </finalmarkings>
+  </net>
+</pnml>

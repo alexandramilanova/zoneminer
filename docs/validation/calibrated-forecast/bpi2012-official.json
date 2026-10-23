@@ -1,0 +1,227 @@
+{
+  "source_name": "BPI2012-original.xes.gz",
+  "source_sha256": "5cd9cc16b9bcb20bd4aae45666a5d87479ddbf47e6371618b6ad217174cecdf3",
+  "protocol": "Daily; calendar 20% calibration / 70% development; horizon 1; threshold >=1; history lags 3; DT/RF/HGB; no tuning",
+  "zone_policy": "All silent-linked place components, fixed from calibration topology. Structural diagnostics, not validated business zones. Final-place tokens persist.",
+  "cases": 13087,
+  "events": 262200,
+  "import_order": {
+    "policy": "stable_timestamp_order_v1",
+    "reordered_cases": 0,
+    "moved_events": 0,
+    "tied_adjacent_events": 13995
+  },
+  "start": "2011-09-30 00:00:00+00:00",
+  "observed_through": "2012-03-15 00:00:00+00:00",
+  "calibration_end": "2011-11-02 00:00:00+00:00",
+  "development_end": "2012-01-24 00:00:00+00:00",
+  "calibration": {
+    "id": "0af37f18c445cb9ed9d47541",
+    "version": "observed-prefix-calibration-v1",
+    "calibration_end": "2011-11-02 00:00:00+00:00",
+    "prefix_sha256": "c7e6f715be46ebfc7465aaaa62ce438b878d56824b679348494790edafb13878",
+    "observed_cases": 2487,
+    "observed_events": 40541,
+    "note": "Discovered from observed case prefixes only; case completion was not inferred using later events."
+  },
+  "model": {
+    "places": 59,
+    "transitions": 87,
+    "silent": 63
+  },
+  "calibration_compatibility": {
+    "observed_cases": 2487,
+    "compatible_cases": 0,
+    "failed_cases": 2487,
+    "failures_by_category": {
+      "unsupported_or_resource_limit": 2487
+    },
+    "examples": [
+      {
+        "case": "173688",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173691",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173694",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173697",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173700",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173703",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173706",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173709",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173712",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173715",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      }
+    ],
+    "replayed_events_before_failures": 2487,
+    "peak_markings": 1
+  },
+  "full_observed_compatibility": {
+    "observed_cases": 13087,
+    "compatible_cases": 0,
+    "failed_cases": 13087,
+    "failures_by_category": {
+      "unsupported_or_resource_limit": 13087
+    },
+    "examples": [
+      {
+        "case": "173688",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173691",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173694",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173697",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173700",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173703",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173706",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173709",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173712",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      },
+      {
+        "case": "173715",
+        "reason": "Silent closure exceeds 256 possible markings; no route is selected arbitrarily."
+      }
+    ],
+    "replayed_events_before_failures": 13087,
+    "peak_markings": 1
+  },
+  "zones": [
+    {
+      "name": "Component 001",
+      "places": [
+        "p_10",
+        "p_11",
+        "p_12",
+        "p_14",
+        "p_15",
+        "p_16",
+        "p_17",
+        "p_18",
+        "p_19",
+        "p_20",
+        "p_22",
+        "p_24",
+        "p_25",
+        "p_26",
+        "p_27",
+        "p_29",
+        "p_30",
+        "p_31",
+        "p_32",
+        "p_33",
+        "p_34",
+        "p_35",
+        "p_36",
+        "p_37",
+        "p_38",
+        "p_39",
+        "p_40",
+        "p_41",
+        "p_42",
+        "p_43",
+        "p_46",
+        "p_47",
+        "p_48",
+        "p_49",
+        "p_51",
+        "p_52",
+        "p_53",
+        "p_54",
+        "p_55",
+        "p_56",
+        "p_57",
+        "p_58",
+        "p_59",
+        "p_6",
+        "p_61",
+        "p_62",
+        "p_63",
+        "p_64",
+        "p_65",
+        "p_66",
+        "p_67",
+        "p_68",
+        "p_7",
+        "p_8",
+        "p_9",
+        "sink"
+      ],
+      "contains_initial": false,
+      "contains_final": true
+    },
+    {
+      "name": "Component 002",
+      "places": [
+        "p_28"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 003",
+      "places": [
+        "p_4"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 004",
+      "places": [
+        "source"
+      ],
+      "contains_initial": true,
+      "contains_final": false
+    }
+  ],
+  "error": "The learned calibration prefixes are not supported by declared replay; no forecasting result is reported.",
+  "seconds": 26.596669638000094
+}

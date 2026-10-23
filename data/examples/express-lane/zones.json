@@ -1,0 +1,11 @@
+{
+  "Intake": [
+    "p_after_Register_Order"
+  ],
+  "Processing": [
+    "p_after_Classify_Order"
+  ],
+  "Shipping": [
+    "p_after_Process_Order"
+  ]
+}

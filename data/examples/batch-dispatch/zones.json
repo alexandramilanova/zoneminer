@@ -1,0 +1,11 @@
+{
+  "Packing": [
+    "p_after_Receive_Parcel"
+  ],
+  "Loading dock": [
+    "p_after_Pack_Parcel"
+  ],
+  "Delivery": [
+    "p_after_Load_Truck"
+  ]
+}

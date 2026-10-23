@@ -1,0 +1,89 @@
+{
+  "zone_feature_rows": 90,
+  "zone_feature_columns": [
+    "alignment_deviation_count",
+    "alignment_log_move_count",
+    "alignment_model_move_count",
+    "alignment_sync_move_count",
+    "alignment_trace_cost_mean",
+    "alignment_trace_count",
+    "alignment_trace_deviation_rate",
+    "alignment_trace_fitness_mean",
+    "case_active_window",
+    "case_avg_duration_completed",
+    "case_batch_count",
+    "case_batch_size_mean",
+    "case_batch_wait_overhead_mean",
+    "case_batching_ratio",
+    "case_completion_ratio",
+    "case_duration_p50",
+    "case_duration_p90",
+    "case_enter",
+    "case_exit",
+    "case_fifo_inversion_ratio",
+    "case_overtake_depth_mean",
+    "case_overtaken_rate",
+    "case_present_end",
+    "case_revisit_enter",
+    "case_revisit_gap_mean",
+    "case_rework_ratio",
+    "token_age_p90_open",
+    "token_aged_open_share",
+    "token_avg_age_open",
+    "token_avg_duration_completed",
+    "token_avg_present_window",
+    "token_completion_ratio",
+    "token_enter",
+    "token_exit",
+    "token_netflow",
+    "token_present_end",
+    "token_stagnation_index",
+    "window_end",
+    "window_start",
+    "zone",
+    "zone_deviation_count",
+    "zone_deviation_weight",
+    "zone_local_fitness",
+    "zone_log_move_count",
+    "zone_model_move_count",
+    "zone_sync_move_count"
+  ],
+  "zones": [
+    "Customer Interaction",
+    "Fulfillment",
+    "Logistics",
+    "Payment & Risk",
+    "Quality"
+  ],
+  "token_place_rows": 9266,
+  "conformance_trace_count": 455,
+  "fitness_mean": 0.9605538613434681,
+  "deviating_trace_count": 230,
+  "per_zone": {
+    "Customer Interaction": {
+      "rows": 18,
+      "token_entries_total": null,
+      "case_entries_total": null
+    },
+    "Fulfillment": {
+      "rows": 18,
+      "token_entries_total": null,
+      "case_entries_total": null
+    },
+    "Logistics": {
+      "rows": 18,
+      "token_entries_total": null,
+      "case_entries_total": null
+    },
+    "Payment & Risk": {
+      "rows": 18,
+      "token_entries_total": null,
+      "case_entries_total": null
+    },
+    "Quality": {
+      "rows": 18,
+      "token_entries_total": null,
+      "case_entries_total": null
+    }
+  }
+}

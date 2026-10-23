@@ -1,0 +1,46 @@
+[project]
+name = "zone-analytics"
+version = "2.0.0a1"
+description = "Zone-based token-flow analytics for business processes: descriptive and predictive analysis of event logs over user-defined zones of a Petri net"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [
+  { name = "Alexandra Milanova" },
+  { name = "Ali Norouzifar" },
+]
+dependencies = [
+  "numpy==2.4.6",
+  "pandas",
+  "plotly",
+  "matplotlib==3.11.1",
+  "scikit-learn",
+  "ruptures",
+  "pm4py",
+  "graphviz",
+  "shap",
+  "fastapi",
+  "uvicorn[standard]",
+  "duckdb",
+  "python-multipart",
+  # exact pin: upstream warns of breaking changes in minor/patch releases
+  "r4pm==0.6.0.post1",
+]
+
+[project.optional-dependencies]
+legacy = ["streamlit"]
+dev = ["httpx"]
+
+[project.urls]
+Repository = "https://github.com/alexandramilanova/zoneminer"
+
+[tool.setuptools]
+# application repo, not a library — packages listed for editable installs
+packages = [
+  "analytics",
+  "analytics.metrics",
+  "backend",
+  "backend.routers",
+  "process_model",
+  "services",
+]

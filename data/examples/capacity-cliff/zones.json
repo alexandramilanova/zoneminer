@@ -1,0 +1,14 @@
+{
+  "Preparation": [
+    "p_after_Intake_Order"
+  ],
+  "Assembly": [
+    "p_after_Prepare_Order"
+  ],
+  "Inspection": [
+    "p_after_Assemble_Order"
+  ],
+  "Dispatch": [
+    "p_after_Inspect_Order"
+  ]
+}

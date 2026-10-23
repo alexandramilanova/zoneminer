@@ -1,0 +1,198 @@
+{
+  "source_name": "demo_log_small.csv",
+  "source_sha256": "6b9fec584436215691304630528a3c143592116aad66c2ab4580773fbc676fcc",
+  "protocol": "Daily; calendar 20% calibration / 70% development; horizon 1; threshold >=1; history lags 3; DT/RF/HGB; no tuning",
+  "zone_policy": "All silent-linked place components, fixed from calibration topology. Structural diagnostics, not validated business zones. Final-place tokens persist.",
+  "cases": 455,
+  "events": 7680,
+  "import_order": {
+    "policy": "stable_timestamp_order_v1",
+    "reordered_cases": 0,
+    "moved_events": 0,
+    "tied_adjacent_events": 0
+  },
+  "start": "2024-01-01 00:00:00+00:00",
+  "observed_through": "2024-01-19 00:00:00+00:00",
+  "calibration_end": "2024-01-04 00:00:00+00:00",
+  "development_end": "2024-01-13 00:00:00+00:00",
+  "calibration": {
+    "id": "c08ea0a657f14f95f3f53803",
+    "version": "observed-prefix-calibration-v1",
+    "calibration_end": "2024-01-04 00:00:00+00:00",
+    "prefix_sha256": "102eecdc427fd703e2d7115a011f7169bbdc5e833059c2cbc1c96aae8dabf7bc",
+    "observed_cases": 88,
+    "observed_events": 1339,
+    "note": "Discovered from observed case prefixes only; case completion was not inferred using later events."
+  },
+  "model": {
+    "places": 38,
+    "transitions": 42,
+    "silent": 15
+  },
+  "calibration_compatibility": {
+    "observed_cases": 88,
+    "compatible_cases": 88,
+    "failed_cases": 0,
+    "failures_by_category": {},
+    "examples": [],
+    "replayed_events_before_failures": 1339,
+    "peak_markings": 44
+  },
+  "full_observed_compatibility": {
+    "observed_cases": 455,
+    "compatible_cases": 335,
+    "failed_cases": 120,
+    "failures_by_category": {
+      "visible_deviation": 120
+    },
+    "examples": [
+      {
+        "case": "67",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "102",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "104",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "112",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "130",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "173",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "175",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "182",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "183",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      },
+      {
+        "case": "184",
+        "reason": "visible deviation: no possible marking can replay the observed activity batch; no event is inserted or deleted."
+      }
+    ],
+    "replayed_events_before_failures": 6727,
+    "peak_markings": 44
+  },
+  "zones": [
+    {
+      "name": "Component 001",
+      "places": [
+        "p_10",
+        "p_11",
+        "p_12",
+        "p_13",
+        "p_15",
+        "p_16",
+        "p_17",
+        "p_18",
+        "p_19",
+        "p_20",
+        "p_21",
+        "p_22",
+        "p_23",
+        "p_24",
+        "p_25",
+        "p_26",
+        "p_27",
+        "p_28",
+        "p_29",
+        "p_30",
+        "p_32",
+        "p_35",
+        "p_36",
+        "p_38",
+        "p_39",
+        "p_40",
+        "p_42",
+        "p_45",
+        "p_9",
+        "sink"
+      ],
+      "contains_initial": false,
+      "contains_final": true
+    },
+    {
+      "name": "Component 002",
+      "places": [
+        "p_14"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 003",
+      "places": [
+        "p_3"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 004",
+      "places": [
+        "p_4"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 005",
+      "places": [
+        "p_43"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 006",
+      "places": [
+        "p_5"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 007",
+      "places": [
+        "p_6"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 008",
+      "places": [
+        "p_7"
+      ],
+      "contains_initial": false,
+      "contains_final": false
+    },
+    {
+      "name": "Component 009",
+      "places": [
+        "source"
+      ],
+      "contains_initial": true,
+      "contains_final": false
+    }
+  ],
+  "error": "Observed cases are incompatible or exceed replay limits; none are dropped to obtain a forecast.",
+  "seconds": 0.6918540420010686
+}

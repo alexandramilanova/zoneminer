@@ -1,0 +1,147 @@
+{
+  "source_name": "log.csv",
+  "source_sha256": "5e0bab3f07bc9cfc4bb0b4309d446eecda37562b8444182be42a5a6e54975c45",
+  "protocol": "Daily; calendar 20% calibration / 70% development; horizon 1; threshold >=1; history lags 3; DT/RF/HGB; no tuning",
+  "zone_policy": "All silent-linked place components, fixed from calibration topology. Structural diagnostics, not validated business zones. Final-place tokens persist.",
+  "cases": 388,
+  "events": 2084,
+  "import_order": {
+    "policy": "stable_timestamp_order_v1",
+    "reordered_cases": 0,
+    "moved_events": 0,
+    "tied_adjacent_events": 0
+  },
+  "start": "2025-03-03 00:00:00+00:00",
+  "observed_through": "2025-03-20 00:00:00+00:00",
+  "calibration_end": "2025-03-06 00:00:00+00:00",
+  "development_end": "2025-03-14 00:00:00+00:00",
+  "calibration": {
+    "id": "58ac3616862f997924ca45e7",
+    "version": "observed-prefix-calibration-v1",
+    "calibration_end": "2025-03-06 00:00:00+00:00",
+    "prefix_sha256": "dcef19fb474f57f8260feb7818333fdd10f0c3b478a034496e36e2974ef012ed",
+    "observed_cases": 87,
+    "observed_events": 391,
+    "note": "Discovered from observed case prefixes only; case completion was not inferred using later events."
+  },
+  "model": {
+    "places": 19,
+    "transitions": 26,
+    "silent": 20
+  },
+  "calibration_compatibility": {
+    "observed_cases": 87,
+    "compatible_cases": 87,
+    "failed_cases": 0,
+    "failures_by_category": {},
+    "examples": [],
+    "replayed_events_before_failures": 391,
+    "peak_markings": 30
+  },
+  "full_observed_compatibility": {
+    "observed_cases": 388,
+    "compatible_cases": 388,
+    "failed_cases": 0,
+    "failures_by_category": {},
+    "examples": [],
+    "replayed_events_before_failures": 2084,
+    "peak_markings": 30
+  },
+  "zones": [
+    {
+      "name": "Component 001",
+      "places": [
+        "p_10",
+        "p_11",
+        "p_12",
+        "p_13",
+        "p_15",
+        "p_16",
+        "p_17",
+        "p_18",
+        "p_20",
+        "p_21",
+        "p_22",
+        "p_3",
+        "p_4",
+        "p_5",
+        "p_6",
+        "p_7",
+        "p_8",
+        "sink"
+      ],
+      "contains_initial": false,
+      "contains_final": true
+    },
+    {
+      "name": "Component 002",
+      "places": [
+        "source"
+      ],
+      "contains_initial": true,
+      "contains_final": false
+    }
+  ],
+  "reconstruction": {
+    "policy": "bounded-marking-sets-immediate-routing-v1",
+    "cutoff": "2025-03-20 00:00:00+00:00",
+    "observed_events": 2084,
+    "inferred_silent_events": null,
+    "visible_events_inserted": 0,
+    "visible_events_deleted": 0,
+    "silent_transition_counts": {},
+    "inferred_event_preview": [],
+    "preview_limit": 0,
+    "peak_markings": 30,
+    "cases_with_alternatives": 388,
+    "observed_cases": 388,
+    "tied_timestamp_batches": 0,
+    "note": "Multiple possible markings; no uniquely observed silent history, duration, flow or route probability is asserted."
+  },
+  "targets": [
+    {
+      "zone": "Component 001",
+      "metric": "token_present_end",
+      "windows": 14,
+      "ambiguous_windows": 13,
+      "status": "rejected: nonidentifiable occupancy"
+    },
+    {
+      "zone": "Component 001",
+      "metric": "case_present_end",
+      "windows": 14,
+      "ambiguous_windows": 0,
+      "development_examples": 4,
+      "development_positives": 4,
+      "heldout_examples": 6,
+      "heldout_positives": 6,
+      "status": "rejected",
+      "reason": "Insufficient label-eligible history: at least 8 development and 2 held-out examples are required. Reduce the horizon or provide more history; no cutoff is chosen automatically."
+    },
+    {
+      "zone": "Component 002",
+      "metric": "token_present_end",
+      "windows": 14,
+      "ambiguous_windows": 0,
+      "development_examples": 4,
+      "development_positives": 0,
+      "heldout_examples": 6,
+      "heldout_positives": 0,
+      "status": "rejected",
+      "reason": "Insufficient label-eligible history: at least 8 development and 2 held-out examples are required. Reduce the horizon or provide more history; no cutoff is chosen automatically."
+    },
+    {
+      "zone": "Component 002",
+      "metric": "case_present_end",
+      "windows": 14,
+      "ambiguous_windows": 0,
+      "development_examples": 4,
+      "development_positives": 0,
+      "heldout_examples": 6,
+      "heldout_positives": 0,
+      "status": "rejected",
+      "reason": "Insufficient label-eligible history: at least 8 development and 2 held-out examples are required. Reduce the horizon or provide more history; no cutoff is chosen automatically."
+    }
+  ],
+  "seconds": 0.18456175000028452
+}

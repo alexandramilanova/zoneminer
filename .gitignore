@@ -1,0 +1,34 @@
+
+.venv/
+venv/
+env/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+.DS_Store
+.idea/
+.vscode/
+
+.cache/
+.env
+.streamlit/secrets.toml
+.ipynb_checkpoints/
+
+*.pyc
+.venv/
+
+# backend runtime state (content-addressed caches, DuckDB store)
+var/
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+frontend/test-results/
+frontend/playwright-report/
+
+# Manuscript maintained separately from the application repository.
+/paper/
+/output/pdf/

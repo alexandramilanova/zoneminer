@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pnml>
+  <net id="batch_dispatch" type="http://www.pnml.org/version-2009/grammar/pnmlcoremodel">
+    <name>
+      <text>batch_dispatch</text>
+    </name>
+    <page id="n0">
+      <place id="p_after_Receive_Parcel">
+        <name>
+          <text>p_after_Receive_Parcel</text>
+        </name>
+      </place>
+      <place id="p_start">
+        <name>
+          <text>p_start</text>
+        </name>
+        <initialMarking>
+          <text>1</text>
+        </initialMarking>
+      </place>
+      <place id="p_after_Load_Truck">
+        <name>
+          <text>p_after_Load_Truck</text>
+        </name>
+      </place>
+      <place id="p_after_Pack_Parcel">
+        <name>
+          <text>p_after_Pack_Parcel</text>
+        </name>
+      </place>
+      <place id="p_end">
+        <name>
+          <text>p_end</text>
+        </name>
+      </place>
+      <transition id="t_Receive_Parcel">
+        <name>
+          <text>Receive_Parcel</text>
+        </name>
+      </transition>
+      <transition id="t_Load_Truck">
+        <name>
+          <text>Load_Truck</text>
+        </name>
+      </transition>
+      <transition id="t_Deliver_Parcel">
+        <name>
+          <text>Deliver_Parcel</text>
+        </name>
+      </transition>
+      <transition id="t_Pack_Parcel">
+        <name>
+          <text>Pack_Parcel</text>
+        </name>
+      </transition>
+      <arc id="2153021685472" source="p_after_Load_Truck" target="t_Deliver_Parcel"/>
+      <arc id="2153022041168" source="p_start" target="t_Receive_Parcel"/>
+      <arc id="2153021760496" source="p_after_Receive_Parcel" target="t_Pack_Parcel"/>
+      <arc id="2153022044496" source="t_Receive_Parcel" target="p_after_Receive_Parcel"/>
+      <arc id="2153022257008" source="p_after_Pack_Parcel" target="t_Load_Truck"/>
+      <arc id="2153021760016" source="t_Pack_Parcel" target="p_after_Pack_Parcel"/>
+      <arc id="2153022257680" source="t_Load_Truck" target="p_after_Load_Truck"/>
+      <arc id="2153022104080" source="t_Deliver_Parcel" target="p_end"/>
+    </page>
+    <finalmarkings>
+      <marking>
+        <place idref="p_end">
+          <text>1</text>
+        </place>
+      </marking>
+    </finalmarkings>
+  </net>
+</pnml>

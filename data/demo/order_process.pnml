@@ -1,0 +1,384 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pnml>
+  <net id="order_process_fixed" type="http://www.pnml.org/version-2009/grammar/pnmlcoremodel">
+    <name>
+      <text>order_process_fixed</text>
+    </name>
+    <page id="n0">
+      <place id="p_after_B_method">
+        <name>
+          <text>p_after_B_method</text>
+        </name>
+      </place>
+      <place id="p_payment_failed">
+        <name>
+          <text>p_payment_failed</text>
+        </name>
+      </place>
+      <place id="p_pick_ready">
+        <name>
+          <text>p_pick_ready</text>
+        </name>
+      </place>
+      <place id="p_after_E2">
+        <name>
+          <text>p_after_E2</text>
+        </name>
+      </place>
+      <place id="p_and_split">
+        <name>
+          <text>p_and_split</text>
+        </name>
+      </place>
+      <place id="p_start">
+        <name>
+          <text>p_start</text>
+        </name>
+        <initialMarking>
+          <text>1</text>
+        </initialMarking>
+      </place>
+      <place id="p_after_A2">
+        <name>
+          <text>p_after_A2</text>
+        </name>
+      </place>
+      <place id="p_after_A3">
+        <name>
+          <text>p_after_A3</text>
+        </name>
+      </place>
+      <place id="p_after_A6">
+        <name>
+          <text>p_after_A6</text>
+        </name>
+      </place>
+      <place id="p_paid">
+        <name>
+          <text>p_paid</text>
+        </name>
+      </place>
+      <place id="p_and_join">
+        <name>
+          <text>p_and_join</text>
+        </name>
+      </place>
+      <place id="p_after_E3">
+        <name>
+          <text>p_after_E3</text>
+        </name>
+      </place>
+      <place id="p_print_ready">
+        <name>
+          <text>p_print_ready</text>
+        </name>
+      </place>
+      <place id="p_after_B1">
+        <name>
+          <text>p_after_B1</text>
+        </name>
+      </place>
+      <place id="p_after_print">
+        <name>
+          <text>p_after_print</text>
+        </name>
+      </place>
+      <place id="p_after_pack">
+        <name>
+          <text>p_after_pack</text>
+        </name>
+      </place>
+      <place id="p_after_A1">
+        <name>
+          <text>p_after_A1</text>
+        </name>
+      </place>
+      <place id="p_after_B5">
+        <name>
+          <text>p_after_B5</text>
+        </name>
+      </place>
+      <place id="p_after_verification">
+        <name>
+          <text>p_after_verification</text>
+        </name>
+      </place>
+      <place id="p_after_parallel">
+        <name>
+          <text>p_after_parallel</text>
+        </name>
+      </place>
+      <place id="p_qc_entry">
+        <name>
+          <text>p_qc_entry</text>
+        </name>
+      </place>
+      <place id="p_qc_done">
+        <name>
+          <text>p_qc_done</text>
+        </name>
+      </place>
+      <place id="p_after_E1">
+        <name>
+          <text>p_after_E1</text>
+        </name>
+      </place>
+      <place id="p_end">
+        <name>
+          <text>p_end</text>
+        </name>
+      </place>
+      <place id="p_after_pick">
+        <name>
+          <text>p_after_pick</text>
+        </name>
+      </place>
+      <place id="p_after_A4A5">
+        <name>
+          <text>p_after_A4A5</text>
+        </name>
+      </place>
+      <place id="p_after_C1">
+        <name>
+          <text>p_after_C1</text>
+        </name>
+      </place>
+      <place id="p_after_E4">
+        <name>
+          <text>p_after_E4</text>
+        </name>
+      </place>
+      <transition id="tE5">
+        <name>
+          <text>E5_Delivered</text>
+        </name>
+      </transition>
+      <transition id="tC1">
+        <name>
+          <text>C1_Reserve_Stock</text>
+        </name>
+      </transition>
+      <transition id="tA3">
+        <name>
+          <text>A3_Checkout_Started</text>
+        </name>
+      </transition>
+      <transition id="tA6">
+        <name>
+          <text>A6_Submit_Order</text>
+        </name>
+      </transition>
+      <transition id="tC4">
+        <name>
+          <text>C4_Pack_Items</text>
+        </name>
+      </transition>
+      <transition id="tE4">
+        <name>
+          <text>E4_Dispatch</text>
+        </name>
+      </transition>
+      <transition id="tA4">
+        <name>
+          <text>A4_Login_Customer</text>
+        </name>
+      </transition>
+      <transition id="tE3">
+        <name>
+          <text>E3_Out_For_Delivery</text>
+        </name>
+      </transition>
+      <transition id="tB1">
+        <name>
+          <text>B1_Initiate_Payment</text>
+        </name>
+      </transition>
+      <transition id="tB7">
+        <name>
+          <text>B7_Receive_Verification</text>
+        </name>
+      </transition>
+      <transition id="tJoin">
+        <name>
+          <text>tJoin</text>
+        </name>
+        <toolspecific tool="ProM" version="6.4" activity="$invisible$" localNodeID="0049dfa7-53fb-43d6-9d78-07c85e5aad1e"/>
+      </transition>
+      <transition id="tB9">
+        <name>
+          <text>B9_Payment_Failed</text>
+        </name>
+      </transition>
+      <transition id="tE2">
+        <name>
+          <text>E2_Handover_To_Courier</text>
+        </name>
+      </transition>
+      <transition id="tB2">
+        <name>
+          <text>B2_PayPal_Payment</text>
+        </name>
+      </transition>
+      <transition id="tE1">
+        <name>
+          <text>E1_Create_Shipping_Label</text>
+        </name>
+      </transition>
+      <transition id="tA2">
+        <name>
+          <text>A2_Add_To_Cart</text>
+        </name>
+      </transition>
+      <transition id="tA5">
+        <name>
+          <text>A5_Enter_Guest_Info</text>
+        </name>
+      </transition>
+      <transition id="tB3">
+        <name>
+          <text>B3_CreditCard_Payment</text>
+        </name>
+      </transition>
+      <transition id="tB4">
+        <name>
+          <text>B4_Invoice_Payment</text>
+        </name>
+      </transition>
+      <transition id="tB8">
+        <name>
+          <text>B8_Payment_Confirmed</text>
+        </name>
+      </transition>
+      <transition id="tSplit">
+        <name>
+          <text>tSplit</text>
+        </name>
+        <toolspecific tool="ProM" version="6.4" activity="$invisible$" localNodeID="40112637-2779-484f-bec6-0a9bf69e4fd5"/>
+      </transition>
+      <transition id="tRW">
+        <name>
+          <text>D2_Rework</text>
+        </name>
+      </transition>
+      <transition id="tQDone">
+        <name>
+          <text>D3_QA_Completed</text>
+        </name>
+      </transition>
+      <transition id="tSkipQC">
+        <name>
+          <text>tSkipQC</text>
+        </name>
+        <toolspecific tool="ProM" version="6.4" activity="$invisible$" localNodeID="eb7754d0-6d52-408b-af12-511deb9d03bb"/>
+      </transition>
+      <transition id="tA1">
+        <name>
+          <text>A1_View_Product</text>
+        </name>
+      </transition>
+      <transition id="tB6">
+        <name>
+          <text>B6_Request_Verification</text>
+        </name>
+      </transition>
+      <transition id="tC2">
+        <name>
+          <text>C2_Pick_Items</text>
+        </name>
+      </transition>
+      <transition id="tQC">
+        <name>
+          <text>D1_Quality_Check</text>
+        </name>
+      </transition>
+      <transition id="tB5">
+        <name>
+          <text>B5_Fraud_Review</text>
+        </name>
+      </transition>
+      <transition id="tC3">
+        <name>
+          <text>C3_Print_Documents</text>
+        </name>
+      </transition>
+      <transition id="tCancel">
+        <name>
+          <text>tCancel</text>
+        </name>
+        <toolspecific tool="ProM" version="6.4" activity="$invisible$" localNodeID="f5c186a6-f8ed-473c-9bfd-583a0217cb9d"/>
+      </transition>
+      <arc id="1904507357952" source="tA2" target="p_after_A2"/>
+      <arc id="1904507416576" source="tB9" target="p_payment_failed"/>
+      <arc id="1904507417472" source="p_pick_ready" target="tC2"/>
+      <arc id="1904507418368" source="tC4" target="p_after_pack"/>
+      <arc id="1904507419264" source="tQDone" target="p_qc_done"/>
+      <arc id="1904507420160" source="tE4" target="p_after_E4"/>
+      <arc id="1904507344400" source="tB2" target="p_after_B_method"/>
+      <arc id="1904507264656" source="tB3" target="p_after_B_method"/>
+      <arc id="1904506941712" source="p_after_A1" target="tA2"/>
+      <arc id="1904507546640" source="tB1" target="p_after_B1"/>
+      <arc id="1904507416464" source="p_after_B_method" target="tB9"/>
+      <arc id="1904507417360" source="tSplit" target="p_print_ready"/>
+      <arc id="1904507418256" source="p_after_parallel" target="tC4"/>
+      <arc id="1904507419152" source="p_qc_entry" target="tQDone"/>
+      <arc id="1904507420048" source="p_after_E3" target="tE4"/>
+      <arc id="1904507416912" source="p_paid" target="tC1"/>
+      <arc id="1904507416352" source="tB8" target="p_paid"/>
+      <arc id="1904507417248" source="tSplit" target="p_pick_ready"/>
+      <arc id="1904507418144" source="tJoin" target="p_after_parallel"/>
+      <arc id="1904507419040" source="tRW" target="p_qc_entry"/>
+      <arc id="1904507419936" source="tE3" target="p_after_E3"/>
+      <arc id="1904506860080" source="p_start" target="tA1"/>
+      <arc id="1904507358256" source="p_after_A2" target="tA3"/>
+      <arc id="1904506711088" source="tA3" target="p_after_A3"/>
+      <arc id="1904507546416" source="p_after_A6" target="tB1"/>
+      <arc id="1904507508272" source="tB4" target="p_after_B_method"/>
+      <arc id="1904507416240" source="p_after_B_method" target="tB8"/>
+      <arc id="1904507417136" source="p_after_C1" target="tSplit"/>
+      <arc id="1904507417808" source="tC3" target="p_after_print"/>
+      <arc id="1904507418032" source="p_after_print" target="tJoin"/>
+      <arc id="1904507418928" source="p_qc_entry" target="tRW"/>
+      <arc id="1904507055680" source="tA6" target="p_after_A6"/>
+      <arc id="1904506874304" source="p_after_B1" target="tB2"/>
+      <arc id="1904507264832" source="p_after_B1" target="tB4"/>
+      <arc id="1904507416128" source="tB7" target="p_after_B_method"/>
+      <arc id="1904507417024" source="tC1" target="p_after_C1"/>
+      <arc id="1904507417920" source="p_after_pick" target="tJoin"/>
+      <arc id="1904507418816" source="tQC" target="p_qc_entry"/>
+      <arc id="1904507419712" source="tE2" target="p_after_E2"/>
+      <arc id="1904507344592" source="p_after_B1" target="tB3"/>
+      <arc id="1904506941392" source="tA1" target="p_after_A1"/>
+      <arc id="1904506633168" source="p_after_A3" target="tA4"/>
+      <arc id="1904507229520" source="p_after_A3" target="tA5"/>
+      <arc id="1904507229776" source="tA5" target="p_after_A4A5"/>
+      <arc id="1904507055440" source="p_after_A4A5" target="tA6"/>
+      <arc id="1904507508432" source="p_after_B_method" target="tB5"/>
+      <arc id="1904507552080" source="p_after_B_method" target="tB6"/>
+      <arc id="1904507552208" source="tB6" target="p_after_verification"/>
+      <arc id="1904507416016" source="p_after_verification" target="tB7"/>
+      <arc id="1904507418704" source="p_after_pack" target="tQC"/>
+      <arc id="1904507419824" source="p_after_E2" target="tE3"/>
+      <arc id="1904506633440" source="tA4" target="p_after_A4A5"/>
+      <arc id="1904507415904" source="p_after_B5" target="tB6"/>
+      <arc id="1904507416800" source="tCancel" target="p_end"/>
+      <arc id="1904507417696" source="p_print_ready" target="tC3"/>
+      <arc id="1904507418592" source="tSkipQC" target="p_qc_done"/>
+      <arc id="1904507419488" source="tE1" target="p_after_E1"/>
+      <arc id="1904507420384" source="tE5" target="p_end"/>
+      <arc id="1904507419600" source="p_after_E1" target="tE2"/>
+      <arc id="1904507453808" source="tB5" target="p_after_B5"/>
+      <arc id="1904507416688" source="p_payment_failed" target="tCancel"/>
+      <arc id="1904507417584" source="tC2" target="p_after_pick"/>
+      <arc id="1904507418480" source="p_after_pack" target="tSkipQC"/>
+      <arc id="1904507419376" source="p_qc_done" target="tE1"/>
+      <arc id="1904507420272" source="p_after_E4" target="tE5"/>
+    </page>
+    <finalmarkings>
+      <marking>
+        <place idref="p_end">
+          <text>1</text>
+        </place>
+      </marking>
+    </finalmarkings>
+  </net>
+</pnml>

@@ -1,0 +1,11 @@
+{
+  "title": "Batch dispatch: two truck runs a day",
+  "description": "Parcels are packed continuously but leave the loading dock only at 11:00 and 17:00 \u2014 synchronized waiting made visible.",
+  "highlights": [
+    "Batching metrics: ~2 batches/day on the dock",
+    "CFD staircase; fingerprint scatter rows",
+    "Batch wait overhead vs. cheap clusters",
+    "Queue-model verdict: degenerate (by design)"
+  ],
+  "timeframe": "D"
+}

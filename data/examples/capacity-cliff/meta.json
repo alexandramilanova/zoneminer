@@ -1,0 +1,11 @@
+{
+  "title": "Capacity cliff: a bottleneck is born and drains",
+  "description": "Assembly slows to a crawl for six days: backlog piles up in front of it, downstream zones starve, then the line recovers and drains.",
+  "highlights": [
+    "Bottleneck states: queueing, then starving downstream",
+    "Zone flow map halos & drift scores",
+    "Compare two periods (before vs. during)",
+    "Open-case outlook mid-drift (moment slider)"
+  ],
+  "timeframe": "D"
+}

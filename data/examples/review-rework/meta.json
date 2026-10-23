@@ -1,0 +1,11 @@
+{
+  "title": "Review & rework: documents loop back",
+  "description": "Rejected documents leave Review, get revised, and re-enter Drafting and Review \u2014 real revisits, plus noisy events the model cannot replay.",
+  "highlights": [
+    "Revisit & rework metrics (non-zero!)",
+    "Zone-attributed log/model moves & local fitness",
+    "Cyclic handover Sankey",
+    "Case journey: watch a document loop"
+  ],
+  "timeframe": "D"
+}

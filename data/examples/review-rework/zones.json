@@ -1,0 +1,14 @@
+{
+  "Drafting": [
+    "p_after_Draft_Document"
+  ],
+  "Review": [
+    "p_after_Submit_For_Review"
+  ],
+  "Revision": [
+    "p_revising"
+  ],
+  "Publishing": [
+    "p_after_Approve_Document"
+  ]
+}

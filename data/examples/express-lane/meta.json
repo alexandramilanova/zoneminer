@@ -1,0 +1,11 @@
+{
+  "title": "Express lane: priority overtaking",
+  "description": "A quarter of the orders are express and jump the two-server Processing queue. Averages look healthy \u2014 the reordering is the story.",
+  "highlights": [
+    "FIFO inversion & overtaking metrics (Processing)",
+    "Fingerprint scatter: crossing dots below the envelope",
+    "Performance spectrum: crossing lines",
+    "Queue-model lens calibrates; what-if applies"
+  ],
+  "timeframe": "D"
+}

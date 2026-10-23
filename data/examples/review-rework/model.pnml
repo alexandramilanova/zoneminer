@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pnml>
+  <net id="review_rework" type="http://www.pnml.org/version-2009/grammar/pnmlcoremodel">
+    <name>
+      <text>review_rework</text>
+    </name>
+    <page id="n0">
+      <place id="p_start">
+        <name>
+          <text>p_start</text>
+        </name>
+        <initialMarking>
+          <text>1</text>
+        </initialMarking>
+      </place>
+      <place id="p_end">
+        <name>
+          <text>p_end</text>
+        </name>
+      </place>
+      <place id="p_after_Submit_For_Review">
+        <name>
+          <text>p_after_Submit_For_Review</text>
+        </name>
+      </place>
+      <place id="p_after_Approve_Document">
+        <name>
+          <text>p_after_Approve_Document</text>
+        </name>
+      </place>
+      <place id="p_after_Draft_Document">
+        <name>
+          <text>p_after_Draft_Document</text>
+        </name>
+      </place>
+      <place id="p_revising">
+        <name>
+          <text>p_revising</text>
+        </name>
+      </place>
+      <transition id="t_Approve_Document">
+        <name>
+          <text>Approve_Document</text>
+        </name>
+      </transition>
+      <transition id="t_Publish_Document">
+        <name>
+          <text>Publish_Document</text>
+        </name>
+      </transition>
+      <transition id="t_Draft_Document">
+        <name>
+          <text>Draft_Document</text>
+        </name>
+      </transition>
+      <transition id="t_Submit_For_Review">
+        <name>
+          <text>Submit_For_Review</text>
+        </name>
+      </transition>
+      <transition id="t_Reject">
+        <name>
+          <text>Reject_Document</text>
+        </name>
+      </transition>
+      <transition id="t_Revise">
+        <name>
+          <text>Revise_Document</text>
+        </name>
+      </transition>
+      <arc id="2153022023552" source="p_after_Draft_Document" target="t_Submit_For_Review"/>
+      <arc id="2153022207520" source="p_after_Submit_For_Review" target="t_Reject"/>
+      <arc id="2153022207296" source="p_revising" target="t_Revise"/>
+      <arc id="2153022207744" source="t_Revise" target="p_after_Draft_Document"/>
+      <arc id="2153022102928" source="p_start" target="t_Draft_Document"/>
+      <arc id="2153022753840" source="t_Submit_For_Review" target="p_after_Submit_For_Review"/>
+      <arc id="2153022024432" source="t_Draft_Document" target="p_after_Draft_Document"/>
+      <arc id="2153022762800" source="p_after_Submit_For_Review" target="t_Approve_Document"/>
+      <arc id="2153022638704" source="t_Approve_Document" target="p_after_Approve_Document"/>
+      <arc id="2153022699344" source="p_after_Approve_Document" target="t_Publish_Document"/>
+      <arc id="2153022699856" source="t_Publish_Document" target="p_end"/>
+      <arc id="2153022207184" source="t_Reject" target="p_revising"/>
+    </page>
+    <finalmarkings>
+      <marking>
+        <place idref="p_end">
+          <text>1</text>
+        </place>
+      </marking>
+    </finalmarkings>
+  </net>
+</pnml>
