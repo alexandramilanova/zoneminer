@@ -3,6 +3,57 @@ import unittest
 import numpy as np
 import pandas as pd
 
+class ExactPeltCostReuseTests(unittest.TestCase):
+    def test_shared_partition_scores_preserve_upstream_ties_and_pruning(self):
+        import ruptures as rpt
+        from analytics.changepoints import _Pelt
+        rng = np.random.default_rng(64)
+        signals = [np.zeros(55), np.tile([1., 0., 1., 1.], 15),
+                   np.r_[np.zeros(25), np.ones(30)], 1e10 + rng.normal(scale=.01, size=65)]
+        signals += [rng.integers(0, 4, size=60).astype(float) for _ in range(6)]
+        for values in signals:
+            for minimum in (1, 2, 3, 6):
+                for jump in (1, 2, 5):
+                    original = rpt.Pelt(min_size=minimum, jump=jump).fit(values)
+                    faster = _Pelt(min_size=minimum, jump=jump).fit(values)
+                    for penalty in (0., 1e-12, .1, 1., 5., 100.):
+                        self.assertEqual(faster.predict(penalty), original.predict(penalty))
+
+    def test_segment_costs_and_penalty_results_match_upstream_exactly(self):
+        import ruptures as rpt
+        from analytics.changepoints import _CachedL2, _run_pelt_cached, _fitted_pelt
+        rng = np.random.default_rng(81)
+        for values in (np.zeros(45), np.tile([0., 1., 0.], 20),
+                       rng.normal(size=70), 1e9 + rng.normal(scale=.01, size=50)):
+            y = values.reshape(-1, 1)
+            cost, original = _CachedL2().fit(y), rpt.costs.CostL2().fit(y)
+            for start in range(len(y)):
+                for end in range(start + 1, len(y) + 1):
+                    self.assertEqual(cost.error(start, end), original.error(start, end))
+            for minimum, jump in ((2, 1), (3, 3)):
+                for penalty in (0., .1, 1., 10., 50.):
+                    expected = rpt.Pelt(model="l2", min_size=minimum, jump=jump).fit(y).predict(pen=penalty)[:-1]
+                    self.assertEqual(list(_run_pelt_cached(tuple(values), "l2", penalty, minimum, jump)), expected)
+        _run_pelt_cached.cache_clear()
+        _fitted_pelt.cache_clear()
+
+    def test_entire_strictness_search_preserves_breakpoints(self):
+        from unittest.mock import patch
+        import ruptures as rpt
+        from analytics import changepoints as cp
+        rng = np.random.default_rng(29)
+        for values in (np.r_[np.zeros(24), np.ones(24), np.zeros(24)], rng.poisson(2, 72).astype(float)):
+            for strictness in (0, 50, 100):
+                cp._run_pelt_cached.cache_clear()
+                actual = cp._pelt_changepoints_from_strictness(values, strictness=strictness)
+                cp._run_pelt_cached.cache_clear()
+                with patch.object(cp, "_fitted_pelt", side_effect=lambda v, m, s, j:
+                                  rpt.Pelt(model=m, min_size=s, jump=j).fit(np.asarray(v).reshape(-1, 1))):
+                    expected = cp._pelt_changepoints_from_strictness(values, strictness=strictness)
+                self.assertEqual(actual, expected)
+        cp._run_pelt_cached.cache_clear()
+        cp._fitted_pelt.cache_clear()
+
 from analytics.drift import zone_drift_scores
 
 

@@ -1,18 +1,18 @@
-import React from "react";
+import React, { lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import "@fontsource-variable/inter";
 import "./theme.css";
 import Layout from "./components/Layout";
 import { AppStateProvider } from "./state";
-import Workspace from "./pages/Workspace";
-import Overview from "./pages/Overview";
-import Replay from "./pages/Replay";
-import Trends from "./pages/Trends";
-import FlowPatterns from "./pages/FlowPatterns";
-import Dependencies from "./pages/Dependencies";
-import Prediction from "./pages/Prediction";
-import Metrics from "./pages/Metrics";
+const Workspace = lazy(() => import("./pages/Workspace"));
+const Overview = lazy(() => import("./pages/Overview"));
+const Replay = lazy(() => import("./pages/Replay"));
+const Trends = lazy(() => import("./pages/Trends"));
+const FlowPatterns = lazy(() => import("./pages/FlowPatterns"));
+const Dependencies = lazy(() => import("./pages/Dependencies"));
+const Prediction = lazy(() => import("./pages/Prediction"));
+const Metrics = lazy(() => import("./pages/Metrics"));
 
 const router = createHashRouter([
   {

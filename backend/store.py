@@ -14,7 +14,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import threading
+from contextlib import contextmanager
 from typing import Optional
 
 import duckdb
@@ -24,14 +26,42 @@ from backend import config
 
 _lock = threading.Lock()
 _con: Optional[duckdb.DuckDBPyConnection] = None
+_workspace_connections: dict[str, duckdb.DuckDBPyConnection] = {}
+
+
+@contextmanager
+def _access():
+    # Anonymous workers are separate processes. Never leave a DuckDB connection
+    # open across calls, and serialize metadata access across those processes.
+    with _lock:
+        root = config.data_dir()
+        if root == config.DATA_DIR:
+            yield
+            return
+        import fcntl
+        config.ensure_dirs()
+        with open(os.path.join(root, "store.lock"), "a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                connection = _workspace_connections.pop(root, None)
+                if connection is not None:
+                    connection.close()
 
 
 def _connect() -> duckdb.DuckDBPyConnection:
     global _con
-    if _con is None:
+    root = config.data_dir()
+    connection = _con if root == config.DATA_DIR else _workspace_connections.get(root)
+    if connection is None:
         config.ensure_dirs()
-        _con = duckdb.connect(config.DB_PATH)
-        _con.execute(
+        connection = duckdb.connect(os.path.join(root, "store.duckdb"))
+        if root == config.DATA_DIR:
+            _con = connection
+        else:
+            _workspace_connections[root] = connection
+        connection.execute(
             """
             CREATE TABLE IF NOT EXISTS datasets (
                 id TEXT PRIMARY KEY,
@@ -42,7 +72,7 @@ def _connect() -> duckdb.DuckDBPyConnection:
             )
             """
         )
-        _con.execute(
+        connection.execute(
             """
             CREATE TABLE IF NOT EXISTS analyses (
                 id TEXT PRIMARY KEY,
@@ -56,7 +86,20 @@ def _connect() -> duckdb.DuckDBPyConnection:
             )
             """
         )
-    return _con
+    return connection
+
+
+def close_workspace(root: str) -> None:
+    with _lock:
+        connection = _workspace_connections.pop(root, None)
+        if connection is not None:
+            connection.close()
+
+
+def _safe_id(identifier: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", identifier):
+        raise ValueError("Invalid artifact identifier")
+    return identifier
 
 
 def dataset_id_for(log_bytes: bytes, pnml_bytes: Optional[bytes]) -> str:
@@ -71,7 +114,7 @@ def analysis_id_for(dataset_id: str, zone_places: dict, timeframe: str, backend:
     # Old artifacts may contain guessed silent paths or unit-weight replay.
     # Never serve those as a cache hit under the corrected replay semantics.
     payload = json.dumps(
-        ["chronological-exact-replay-v2", dataset_id, {k: sorted(v) for k, v in sorted(zone_places.items())}, timeframe, backend],
+        ["canonical-alignment-replay-v4", dataset_id, {k: sorted(v) for k, v in sorted(zone_places.items())}, timeframe, backend],
         sort_keys=True,
     )
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
@@ -83,7 +126,7 @@ def analysis_id_for(dataset_id: str, zone_places: dict, timeframe: str, backend:
 
 
 def dataset_dir(dataset_id: str) -> str:
-    return os.path.join(config.DATASETS_DIR, dataset_id)
+    return os.path.join(config.data_dir(), "datasets", _safe_id(dataset_id))
 
 
 def save_dataset(
@@ -102,7 +145,7 @@ def save_dataset(
     if pnml_bytes:
         with open(os.path.join(d, "model.pnml"), "wb") as f:
             f.write(pnml_bytes)
-    with _lock:
+    with _access():
         con = _connect()
         con.execute(
             "INSERT INTO datasets (id, name, log_filename, pnml_filename) VALUES (?, ?, ?, ?) "
@@ -112,8 +155,22 @@ def save_dataset(
     return get_dataset(dataset_id)
 
 
+def save_dataset_files(dataset_id, name, log_path, log_filename, pnml_path, pnml_filename):
+    """Copy bounded, streamed uploads without materializing them as bytes."""
+    import shutil
+    directory = dataset_dir(dataset_id)
+    os.makedirs(directory, exist_ok=True)
+    shutil.copyfile(log_path, os.path.join(directory, "log" + os.path.splitext(log_filename)[1].lower()))
+    if pnml_path:
+        shutil.copyfile(pnml_path, os.path.join(directory, "model.pnml"))
+    with _access():
+        _connect().execute("INSERT INTO datasets (id, name, log_filename, pnml_filename) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING",
+                           [dataset_id, name, log_filename, pnml_filename])
+    return get_dataset(dataset_id)
+
+
 def get_dataset(dataset_id: str) -> Optional[dict]:
-    with _lock:
+    with _access():
         con = _connect()
         row = con.execute(
             "SELECT id, name, log_filename, pnml_filename, created_at FROM datasets WHERE id = ?",
@@ -131,7 +188,7 @@ def get_dataset(dataset_id: str) -> Optional[dict]:
 
 
 def list_datasets() -> list[dict]:
-    with _lock:
+    with _access():
         con = _connect()
         rows = con.execute(
             "SELECT id, name, log_filename, pnml_filename, created_at "
@@ -154,7 +211,7 @@ def delete_dataset(dataset_id: str) -> None:
     fail-fast parse check, so no orphaned entries linger)."""
     import shutil
 
-    with _lock:
+    with _access():
         con = _connect()
         con.execute("DELETE FROM datasets WHERE id = ?", [dataset_id])
     shutil.rmtree(dataset_dir(dataset_id), ignore_errors=True)
@@ -179,7 +236,7 @@ def dataset_file_paths(dataset_id: str) -> tuple[Optional[str], Optional[str]]:
 
 
 def analysis_dir(analysis_id: str) -> str:
-    return os.path.join(config.ANALYSES_DIR, analysis_id)
+    return os.path.join(config.data_dir(), "analyses", _safe_id(analysis_id))
 
 
 def upsert_analysis(
@@ -191,7 +248,7 @@ def upsert_analysis(
     status: str,
     error: Optional[str] = None,
 ) -> None:
-    with _lock:
+    with _access():
         con = _connect()
         con.execute(
             """
@@ -204,7 +261,7 @@ def upsert_analysis(
 
 
 def get_analysis(analysis_id: str) -> Optional[dict]:
-    with _lock:
+    with _access():
         con = _connect()
         row = con.execute(
             "SELECT id, dataset_id, zones_json, timeframe, backend, status, error, created_at "
@@ -226,7 +283,7 @@ def get_analysis(analysis_id: str) -> Optional[dict]:
 
 
 def list_analyses(dataset_id: Optional[str] = None) -> list[dict]:
-    with _lock:
+    with _access():
         con = _connect()
         if dataset_id:
             rows = con.execute(
@@ -246,21 +303,28 @@ def list_analyses(dataset_id: Optional[str] = None) -> list[dict]:
 def save_frame(analysis_id: str, name: str, df: pd.DataFrame) -> None:
     d = analysis_dir(analysis_id)
     os.makedirs(d, exist_ok=True)
-    path = os.path.join(d, f"{name}.parquet").replace("\\", "/")
-    with _lock:
+    path = os.path.join(d, f"{_safe_id(name)}.parquet").replace("\\", "/").replace("'", "''")
+    with _access():
         con = _connect()
         con.register("df_out", df)
         con.execute(f"COPY df_out TO '{path}' (FORMAT PARQUET)")
         con.unregister("df_out")
+    from backend.sessions import check_storage
+    try:
+        check_storage()
+    except Exception:
+        os.remove(path.replace("''", "'"))
+        raise
 
 
 def load_frame(analysis_id: str, name: str) -> Optional[pd.DataFrame]:
-    path = os.path.join(analysis_dir(analysis_id), f"{name}.parquet").replace("\\", "/")
+    path = os.path.join(analysis_dir(analysis_id), f"{_safe_id(name)}.parquet").replace("\\", "/")
     if not os.path.exists(path):
         return None
-    with _lock:
+    with _access():
         con = _connect()
-        return con.execute(f"SELECT * FROM '{path}'").df()
+        # Arrow avoids DuckDB's deprecated pandas inplace conversion path.
+        return con.execute("SELECT * FROM read_parquet(?)", [path]).to_arrow_table().to_pandas()
 
 
 def has_artifacts(analysis_id: str) -> bool:

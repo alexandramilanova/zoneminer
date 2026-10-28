@@ -45,7 +45,8 @@ from analytics.prediction import (
     make_wide_feature_table,
     train_compare_models,
 )
-from backend import config, store
+from backend import config, store, isolation
+from backend.isolation import endpoint
 from backend.jobs import manager
 from backend.runner import get_bundle, run_analysis_job
 from backend.zone_requests import ZoneConfiguration
@@ -112,16 +113,13 @@ def create_analysis(dataset_id: str, body: AnalysisRequest):
     if backend not in ("pm4py", "r4pm"):
         raise HTTPException(400, f"Unknown alignment backend {backend!r}")
 
-    bundle = get_bundle(dataset_id)
-    place_names = sorted(p.name for p in bundle.net.places)
-    validation = validate_zones(
-        zone_inputs=body.zone_inputs(),
-        place_names=place_names,
-        net=bundle.net,
-        require_non_empty=True,
-        allow_unassigned_places=True,
-        require_connected=True,
-    )
+    if config.data_dir() != config.DATA_DIR:
+        validation = isolation.run("backend.isolation", "validate_analysis", dataset_id, body)
+    else:
+        bundle = get_bundle(dataset_id)
+        validation = validate_zones(zone_inputs=body.zone_inputs(), place_names=sorted(p.name for p in bundle.net.places),
+                                    net=bundle.net, require_non_empty=True, allow_unassigned_places=True,
+                                    require_connected=True)
     if not validation["zone_config_valid"]:
         raise HTTPException(422, detail={"errors": validation["errors"]})
     zone_places = validation["zone_places"]
@@ -135,7 +133,11 @@ def create_analysis(dataset_id: str, body: AnalysisRequest):
     # be overwritten by a late "queued" write
     job = manager.submit(
         "analysis",
-        lambda j: run_analysis_job(j, analysis_id, dataset_id, zone_places, body.timeframe, backend),
+        lambda j: (
+            isolation.analysis_job(j, analysis_id, dataset_id, zone_places, body.timeframe, backend)
+            if config.data_dir() != config.DATA_DIR
+            else run_analysis_job(j, analysis_id, dataset_id, zone_places, body.timeframe, backend)
+        ),
         key=analysis_id,
         on_submit=lambda: store.upsert_analysis(analysis_id, dataset_id, zone_places, body.timeframe, backend, "queued"),
     )
@@ -170,6 +172,7 @@ def stream_job_events(job_id: str):
 
 
 @router.get("/analyses/{analysis_id}")
+@endpoint
 def get_analysis(analysis_id: str):
     meta = _get_analysis_or_404(analysis_id)
     meta["has_artifacts"] = store.has_artifacts(analysis_id)
@@ -183,6 +186,7 @@ def get_analysis(analysis_id: str):
 
 
 @router.get("/analyses/{analysis_id}/features")
+@endpoint
 def get_features(
     analysis_id: str,
     zones: Optional[str] = None,
@@ -201,6 +205,7 @@ def get_features(
 
 
 @router.get("/analyses/{analysis_id}/metrics")
+@endpoint
 def get_metric_catalog(analysis_id: str):
     meta = _get_analysis_or_404(analysis_id)
     zf = _load_features_or_409(analysis_id)
@@ -238,6 +243,7 @@ def get_metric_catalog(analysis_id: str):
 
 
 @router.get("/analyses/{analysis_id}/token-intervals")
+@endpoint
 def get_token_intervals(
     analysis_id: str,
     limit: int = Query(default=50000, ge=1, le=50000),
@@ -289,6 +295,7 @@ def _zone_stays_frame(analysis_id: str, meta: dict) -> pd.DataFrame:
 
 
 @router.get("/analyses/{analysis_id}/zone-stays")
+@endpoint
 def get_zone_stays(
     analysis_id: str, zones: Optional[str] = None,
     limit: int = Query(default=200000, ge=1, le=200000),
@@ -304,8 +311,9 @@ def get_zone_stays(
 
 
 @router.get("/analyses/{analysis_id}/queueing")
+@endpoint
 def get_queueing_profile(analysis_id: str, scatter_limit: int = 1500):
-    """Queueing-theoretic zone profile from case-zone stays (EXTENSIONS A3).
+    """Queueing-theoretic zone profile from case-zone stays.
 
     Per zone: arrival/departure rates, sojourn stats, time-averaged WIP,
     a Little's-law consistency ratio (L / (lambda x W) — approximately 1 under
@@ -393,7 +401,7 @@ def get_queueing_profile(analysis_id: str, scatter_limit: int = 1500):
         if occ.size >= 8 and occ.std() > 0 and np.nanstd(soj) > 0:
             load_r = float(np.corrcoef(occ, soj)[0, 1])
 
-        # Queue-model lens (EXTENSIONS C1, experimental): an aggregated-server
+        # Queue-model lens (experimental): an aggregated-server
         # G/G/1 approximation with mined parameters. Service time = median
         # sojourn of LOW-LOAD arrivals (occupancy at entry <= its p25 — what a
         # case experiences when nothing queues ahead of it); effective service
@@ -510,16 +518,17 @@ def _handover_records(stays: pd.DataFrame) -> pd.DataFrame:
 def _aggregate_handovers(pairs_df: pd.DataFrame) -> list[dict]:
     agg = (
         pairs_df.groupby(["src", "tgt"])["delay_s"]
-        .agg(count="size", median_delay_s="median", mean_delay_s="mean")
-        .reset_index()
-        .sort_values("count", ascending=False)
+     .agg(count="size", median_delay_s="median", mean_delay_s="mean")
+     .reset_index()
+     .sort_values("count", ascending=False)
     )
     return _records(agg)
 
 
 @router.get("/analyses/{analysis_id}/handovers")
+@endpoint
 def get_handovers(analysis_id: str, periods: int = 0):
-    """Inter-zone handover structure from case-zone stays (EXTENSIONS A4/B3).
+    """Inter-zone handover structure from case-zone stays.
 
     Returned per zone pair: volume and handover-delay stats. The handover
     delay is waiting *between* zones — time in no zone at all, e.g. a queue
@@ -563,9 +572,9 @@ def get_handovers(analysis_id: str, periods: int = 0):
 
 
 @router.get("/analyses/{analysis_id}/case-estimates")
+@endpoint
 def get_case_estimates(analysis_id: str, at: Optional[str] = None, limit: int = 200):
-    """Remaining-time outlook for cases open at time ``at`` (EXTENSIONS A10,
-    descriptive variant).
+    """Remaining-time outlook for cases open at time ``at`` (descriptive variant).
 
     For each stay open at ``at`` (default: end of the log), the remaining
     time in its zone is estimated by **conditional survival** on the zone's
@@ -654,8 +663,9 @@ def get_case_estimates(analysis_id: str, at: Optional[str] = None, limit: int = 
 
 
 @router.get("/analyses/{analysis_id}/whatif")
+@endpoint
 def get_whatif(analysis_id: str, zone: str, capacity_multiplier: float = 1.0):
-    """What-if capacity analysis (EXTENSIONS C2, experimental): the zone's
+    """What-if capacity analysis (experimental): the zone's
     actual arrivals and mined service demands replayed through a c-server
     queue, with c calibrated to reproduce the measured mean wait and then
     scaled by ``capacity_multiplier``. Arrivals are held fixed — upstream
@@ -696,9 +706,9 @@ def _transitive(graph: dict[str, set[str]]) -> dict[str, set[str]]:
 
 
 @router.get("/analyses/{analysis_id}/bottlenecks")
+@endpoint
 def get_bottleneck_states(analysis_id: str):
-    """Dynamic bottleneck-state suggestions per zone and window (EXTENSIONS A7,
-    in the spirit of Toosinezhad et al., ICPM 2020: bottlenecks are dynamic
+    """Dynamic bottleneck-state suggestions per zone and window (in the spirit of Toosinezhad et al., ICPM 2020: bottlenecks are dynamic
     and propagate).
 
     Heuristic classification from the zone-feature table plus the handover
@@ -809,6 +819,7 @@ def get_bottleneck_states(analysis_id: str):
 
 
 @router.get("/analyses/{analysis_id}/overview")
+@endpoint
 def get_overview(analysis_id: str):
     meta = _get_analysis_or_404(analysis_id)
     zf = _load_features_or_409(analysis_id)
@@ -846,6 +857,7 @@ def get_overview(analysis_id: str):
 
 
 @router.get("/analyses/{analysis_id}/alerts")
+@endpoint
 def get_alerts(
     analysis_id: str,
     lookback_windows: int = 7,
@@ -900,6 +912,7 @@ def _bh_fdr(pvals: np.ndarray) -> np.ndarray:
 
 
 @router.get("/analyses/{analysis_id}/compare")
+@endpoint
 def compare_periods(
     analysis_id: str,
     start_a: str,
@@ -908,7 +921,7 @@ def compare_periods(
     end_b: str,
     min_windows: int = 3,
 ):
-    """Compare two time slices per zone and metric (EXTENSIONS B7, "process
+    """Compare two time slices per zone and metric ("process
     cubes lite": slicing event data into comparable cells, van der Aalst).
 
     For every zone × metric: window-mean in each slice, absolute and relative
@@ -992,9 +1005,10 @@ def compare_periods(
 
 
 @router.get("/analyses/{analysis_id}/trends/ci")
+@endpoint
 def get_trend_ci(analysis_id: str, confidence: float = 0.95):
     """Per-window confidence intervals for the completed-stay duration mean
-    (EXTENSIONS C5): window means are computed from few stays, so the trend
+ : window means are computed from few stays, so the trend
     line alone overstates certainty. Returns, per zone and window, the mean
     duration of case-zone stays completing in the window with a t-based CI
     (NaN when fewer than 2 stays complete). Buckets use the same half-open
@@ -1055,8 +1069,9 @@ def get_trend_ci(analysis_id: str, confidence: float = 0.95):
 
 
 @router.get("/analyses/{analysis_id}/drift")
+@endpoint
 def get_drift_scores(analysis_id: str, half_window: int = 5):
-    """Per-zone multivariate drift scores (EXTENSIONS A9): energy distance
+    """Per-zone multivariate drift scores: energy distance
     between the trailing and leading half-window feature distributions —
     descriptive change intensity, not causal attribution."""
     from analytics.drift import zone_drift_scores
@@ -1088,6 +1103,7 @@ class TrendSelectionRequest(BaseModel):
 
 
 @router.post("/analyses/{analysis_id}/trends/selection")
+@endpoint
 def selected_trends(analysis_id: str, body: TrendSelectionRequest):
     """Exact pairs; aggregate signals/contributions. Legacy GET routes unchanged."""
     _get_analysis_or_404(analysis_id)
@@ -1112,6 +1128,7 @@ def selected_trends(analysis_id: str, body: TrendSelectionRequest):
 
 
 @router.get("/analyses/{analysis_id}/trends")
+@endpoint
 def get_trends(
     analysis_id: str,
     zones: Optional[str] = None,
@@ -1138,6 +1155,7 @@ def get_trends(
 
 
 @router.get("/analyses/{analysis_id}/changepoints")
+@endpoint
 def get_changepoints(
     analysis_id: str,
     zones: Optional[str] = None,
@@ -1172,7 +1190,7 @@ def get_changepoints(
 
 
 def _attach_dependency_significance(dep: pd.DataFrame, n_lags: int) -> pd.DataFrame:
-    """Statistical guardrail (EXTENSIONS C5) for the dependency scan.
+    """Statistical guardrail  for the dependency scan.
 
     ``best_corr`` is the max-|r| over ``n_lags`` scanned lags, so its plain
     p-value is optimistic — apply a Bonferroni factor for the lag selection,
@@ -1206,6 +1224,7 @@ _dependencies_cache: dict[tuple, dict] = {}
 
 
 @router.get("/analyses/{analysis_id}/dependencies")
+@endpoint
 def get_dependencies(
     analysis_id: str,
     max_lag: int = 3,
@@ -1261,13 +1280,14 @@ def get_dependencies(
 
 
 @router.get("/analyses/{analysis_id}/alerts/hints")
+@endpoint
 def get_alert_hints(
     analysis_id: str,
     zone: str,
     metric: str = "token_present_end",
     max_lag: int = 3,
 ):
-    """Likely-contributor hints for an alerted zone (EXTENSIONS C3).
+    """Likely-contributor hints for an alerted zone.
 
     Ranks the alerted zone's *upstream* zones (transitively, via the handover
     graph) by (a) the strongest lagged Pearson correlation between their flow
@@ -1356,6 +1376,7 @@ class AdvancedAlertsRequest(BaseModel):
 
 
 @router.post("/analyses/{analysis_id}/alerts/advanced")
+@endpoint
 def get_advanced_alerts(analysis_id: str, body: AdvancedAlertsRequest):
     """Custom alert rules combined with ANY/ALL semantics (advanced mode)."""
     _get_analysis_or_404(analysis_id)
@@ -1374,6 +1395,7 @@ def get_advanced_alerts(analysis_id: str, body: AdvancedAlertsRequest):
 
 
 @router.get("/analyses/{analysis_id}/changepoints/selection")
+@endpoint
 def get_selection_changepoints(
     analysis_id: str,
     zones: Optional[str] = None,
@@ -1432,6 +1454,7 @@ def get_selection_changepoints(
 
 
 @router.get("/analyses/{analysis_id}/dependencies/pair")
+@endpoint
 def get_dependency_pair(
     analysis_id: str,
     src_metric: str,
@@ -1463,6 +1486,7 @@ def get_dependency_pair(
 
 
 @router.get("/analyses/{analysis_id}/diagnostics")
+@endpoint
 def get_diagnostics(analysis_id: str):
     """Leak/open-token diagnostics per zone (and per place when available)."""
     _get_analysis_or_404(analysis_id)
@@ -1484,12 +1508,14 @@ from backend import retrospective_prediction
 
 
 @router.get("/analyses/{analysis_id}/prediction/retrospective/options")
+@endpoint
 def retrospective_prediction_options(analysis_id: str):
     _get_analysis_or_404(analysis_id)
     return _clean_json(retrospective_prediction.options(_load_features_or_409(analysis_id)))
 
 
 @router.post("/analyses/{analysis_id}/prediction/retrospective")
+@endpoint
 def run_retrospective_prediction(analysis_id: str, body: retrospective_prediction.Request):
     meta = _get_analysis_or_404(analysis_id)
     try:
@@ -1499,6 +1525,7 @@ def run_retrospective_prediction(analysis_id: str, body: retrospective_predictio
 
 
 @router.get("/analyses/{analysis_id}/prediction/options")
+@endpoint
 def get_prediction_options(analysis_id: str, study_id: str | None = None):
     meta = _get_analysis_or_404(analysis_id)
     try:
@@ -1508,12 +1535,14 @@ def get_prediction_options(analysis_id: str, study_id: str | None = None):
 
 
 @router.post("/analyses/{analysis_id}/prediction")
+@endpoint
 def run_prediction(analysis_id: str, body: PredictionRequest):
     meta = _get_analysis_or_404(analysis_id)
     return _clean_json(execute_forecast(meta, body))
 
 
 @router.post("/analyses/{analysis_id}/prediction/calibrate")
+@endpoint
 def calibrate_prediction(analysis_id: str, body: prediction_calibration.CalibrationRequest):
     meta = _get_analysis_or_404(analysis_id)
     try:
@@ -1527,6 +1556,7 @@ def calibrate_prediction(analysis_id: str, body: prediction_calibration.Calibrat
 
 
 @router.post("/analyses/{analysis_id}/prediction/studies")
+@endpoint
 def freeze_prediction_study(analysis_id: str, body: prediction_calibration.StudyRequest):
     meta = _get_analysis_or_404(analysis_id)
     try:

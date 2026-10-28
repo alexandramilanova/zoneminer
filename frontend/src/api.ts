@@ -299,8 +299,46 @@ export interface DemoInfo {
   timeframe: string;
 }
 
+export interface SessionInfo { mode: "local" | "anonymous"; expires_at: number | null; upload_mb: number | null; workspace_mb: number | null }
+let session: Promise<SessionInfo> | undefined;
+export function sessionInfo(): Promise<SessionInfo> {
+  session ??= fetch("/api/session", { cache: "no-store" }).then(async (response) => {
+    if (!response.ok) throw new Error("Your temporary session has expired or is unavailable. Start a new session.");
+    const info = await response.json() as SessionInfo;
+    if (info.mode === "anonymous") {
+      const identity = String(info.expires_at);
+      if (localStorage.getItem("zoneminer-session") !== identity) {
+        localStorage.removeItem("zone-analytics-current");
+        localStorage.setItem("zoneminer-session", identity);
+      }
+    }
+    return info;
+  });
+  return session;
+}
+
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(url, init);
+  await sessionInfo();
+  // Retry admission bursts only for reads (including the read-only trend POST).
+  // Never repeat uploads, analysis creation or other state-changing requests.
+  const repeatable = !init?.method || init.method === "GET" ||
+    (init.method === "POST" && /\/trends\/selection$/.test(url));
+  let resp = await fetch(url, init);
+  for (let attempt = 0; repeatable && resp.status === 429 && attempt < 2; attempt++) {
+    await resp.body?.cancel();
+    const seconds = Number(resp.headers.get("Retry-After") ?? 2 ** attempt);
+    await new Promise<void>((resolve, reject) => {
+      const signal = init?.signal;
+      const abort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
+      const timer = window.setTimeout(() => {
+        signal?.removeEventListener("abort", abort);
+        resolve();
+      }, Math.min(5, Math.max(0.1, Number.isFinite(seconds) ? seconds : 1)) * 1000);
+      if (signal?.aborted) abort();
+      else signal?.addEventListener("abort", abort, { once: true });
+    });
+    resp = await fetch(url, init);
+  }
   if (!resp.ok) {
     let detail = resp.statusText;
     try {
@@ -400,6 +438,7 @@ export const api = {
     );
   },
   bpmnXml: async (datasetId: string) => {
+    await sessionInfo();
     const resp = await fetch(`/api/datasets/${datasetId}/bpmn.xml`);
     if (!resp.ok) {
       const body = await resp.json().catch(() => null);
@@ -609,8 +648,11 @@ export function subscribeJobEvents(
       const job = await api.job(jobId);
       for (const ev of job.events) if (ev.stage !== "__done__") onEvent(ev);
       if (job.status === "done" || job.status === "error") end(job.status);
-    } catch {
-      /* transient poll failure — keep trying until unsubscribe */
+    } catch (error) {
+      if (error instanceof Error && /^(404|410):/.test(error.message)) {
+        onEvent({ stage: "session", status: "error", detail: "Job is no longer available. The session may have expired or the server restarted.", ts: Date.now() / 1000 });
+        end("error");
+      }
     }
   }, 5000);
 

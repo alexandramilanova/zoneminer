@@ -1,13 +1,13 @@
 # Retrospective Prediction workflow
 
-15 October 2026. The user explicitly chose to replace the strict forecasting
-screen with a retrospective workflow. The restricted prospective
-API is retained separately, without exposing its setup in the new screen.
+The Prediction screen compares classifiers over reconstructed historical zone
+features. The separate restricted prospective API is documented in
+[its protocol](forecasting-protocol.md).
 
-## Small workflow update: class balance and comparable scores
+## Class balance and comparable scores
 
 Protocol `retrospective-v3` preserves the existing setup and model choices.
-The new **Balance training classes** checkbox defaults to off. When enabled,
+The **Balance training classes** checkbox defaults to off. When enabled,
 each training fold assigns weight `n / (2 * class_count)` to each example in
 that class. The final fitted model calculates weights from its labeled training
 rows separately. Evaluation observations, target threshold, folds and the
@@ -152,60 +152,3 @@ restore results for an earlier configuration. Failed submissions preserve input.
 The source feature-table hash, implementation hash, versions and defaults are
 saved with each cached experiment; changing a configuration does not bypass or
 modify the separate prospective holdout ledger.
-
-## Showcase check, without parameter tuning
-
-Fixed software/interpretation check on the unchanged daily showcase:
-Payment & Risk, token_enter >=200, horizon one day, the six standard token
-predictors from that zone, three lags and all three models. This condition is
-not claimed as a validated business alert or a transferable operating limit.
-
-- 35 labeled windows: 8 positive, 27 negative.
-- Five valid temporal folds, 25 evaluated windows, 5 evaluation positives.
-- DT/RF/HGB mean-fold and pooled F1: 0.00 for this condition.
-- Persistence pooled F1: 0.909, precision 0.833, recall 1.00, on the same 25 rows.
-- Reconstruction: 1,829 aligned cases; 1,102 with visible deviations;
-  1,728 log-only moves and 584 inferred visible model moves. Silent moves are
-  not separately counted by the saved summary table.
-
-The classifiers train but do not improve on persistence here. No settings were
-changed after inspecting this result. This recorded check used an explicit
-manual threshold; it does not represent the new suggested-threshold policy. A working comparison interface is not
-evidence of useful predictive performance or conference readiness. The earlier
-raw BPI bounded-prefix failures concern the separate prospective method; they
-are not fixed by relabeling retrospective reconstruction. No new large-log
-end-to-end alignment benchmark is claimed in this change.
-
-## Implementation and validation
-
-- New `analytics/retrospective_prediction.py`: threshold/lag series, purged
-  expanding CV, three classifiers, baselines, latest estimate and explanations.
-- New `backend/retrospective_prediction.py` and analysis routes: typed requests,
-  metric availability, immutable-input reads, repair audit and cached provenance.
-- `frontend/src/pages/Prediction.tsx` and typed API client: replacement screen.
-- Independent tests in `tests/test_retrospective_prediction.py`: known threshold
-  shifts, missing targets, all metric families, purging, earlier-fold isolation,
-  independent confusion/F1 calculations, latest unlabeled row, invalid conditions,
-  API validation/cache and unchanged source tables.
-- Prediction Playwright tests: all metric options, real three-model training,
-  tree/SHAP, stale responses, errors, unchanged descriptive data and the actual
-  showcase/pooled-baseline agreement. Calibration API integration is retained
-  independently of the new screen.
-
-Validation: 203 Python tests and 51 production Chrome tests pass. Frontend
-and Docker builds pass. The descriptive parity gate passes: pm4py exact;
-Rust4PM existing tolerances unchanged. No analytical baseline was updated.
-
-Visual evidence (manually inspected):
-
-- [Actual unchanged showcase](validation/retrospective-prediction/retrospective-showcase.png).
-- [Fixed showcase check record](validation/retrospective-prediction/showcase-check.json).
-
-Tree and SHAP fixture screenshots can be regenerated with
-`frontend/tests/prediction.spec.ts`; redundant committed copies were removed.
-
-The independent fixture's scores are correctness evidence, not evidence of useful
-real-world prediction. The actual showcase illustrates a valid poor result and
-a stronger simple baseline.
-
-[Suggested threshold interface](validation/retrospective-prediction/threshold-defaults.png).

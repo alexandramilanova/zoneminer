@@ -7,9 +7,8 @@ structured reference (`analytics/metrics/reference.py`) is served by
 `GET /api/analyses/{id}/metrics` alongside the legacy Markdown explanation.
 React renders structured paragraphs and formulas, not literal Markdown syntax.
 All metrics include identifiers, human units, scope, calculation/population,
-empty-value rules and counts of non-null analysis rows. The per-metric
-assumptions-and-limits text and API field were subsequently removed at the
-user's request; the shared reconstruction explanation remains.
+empty-value rules and counts of non-null analysis rows. The shared reconstruction explanation describes the interpretation of inferred
+token histories.
 
 Verified against `process_model/features.py` and `process_model/conformance.py`:
 

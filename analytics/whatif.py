@@ -1,4 +1,4 @@
-"""What-if capacity analysis per zone (EXTENSIONS C2, experimental).
+"""What-if capacity analysis per zone (experimental).
 
 A deliberately small, honest counterfactual: keep the zone's *actual arrival
 moments* and each case's mined *service demand*, replay them through a

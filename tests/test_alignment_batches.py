@@ -58,6 +58,27 @@ class TestNativeAlignmentBatches(unittest.TestCase):
         b = self.bundle
         return backends.compute_alignments_r4pm(self.log, b.net, b.im, b.fm, progress)
 
+    def test_native_encoding_and_repeated_replay_are_stable(self):
+        b = self.bundle
+        first = backends._net_to_r4pm(b.net, b.im, b.fm)
+        self.assertEqual(first, backends._net_to_r4pm(b.net, b.im, b.fm))
+        self.assertEqual(json.dumps(first[0]), json.dumps(backends._net_to_r4pm(b.net, b.im, b.fm)[0]))
+        aligned = self.align()
+        for _ in range(3):
+            self.assertEqual(aligned, self.align())
+
+    def test_generated_transition_names_do_not_change_native_structure(self):
+        import copy
+        b = self.bundle
+        clone = copy.deepcopy(b.net)
+        old_by_name = {p.name: p for p in clone.places}
+        im = type(b.im)({old_by_name[p.name]: n for p, n in b.im.items()})
+        fm = type(b.fm)({old_by_name[p.name]: n for p, n in b.fm.items()})
+        for i, transition in enumerate(sorted(clone.transitions, key=lambda t: t.name)):
+            transition.name = f"generated-{i}"
+        self.assertEqual(backends._net_to_r4pm(b.net, b.im, b.fm)[0],
+                         backends._net_to_r4pm(clone, im, fm)[0])
+
     def test_multibatch_matches_serial_alignments_and_replay_in_case_order(self):
         b = self.bundle
         converted = backends._net_to_r4pm(b.net, b.im, b.fm)
@@ -69,7 +90,9 @@ class TestNativeAlignmentBatches(unittest.TestCase):
         for trace in self.log:
             labels = backends._trace_labels(trace)
             result = json.loads(self.engine.call_binding(bindings["align_trace"], json.dumps({"net": r_net, "trace": labels, "options": options})))
-            serial.append(backends._adapt_alignment(result, labels, labels_by_id, names, empty["cost"]))
+            from process_model.alignment_order import canonical_alignment
+            serial.append(canonical_alignment(backends._adapt_alignment(result, labels, labels_by_id, names, empty["cost"]), b.net,
+                                               [event["time:timestamp"] for event in trace]))
 
         progress = Mock()
         native_batch = backends._align_variant_batch

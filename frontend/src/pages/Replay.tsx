@@ -41,7 +41,7 @@ function upperBound(arr: number[], x: number): number {
   return lo;
 }
 
-/** One case's journey through the zones (EXTENSIONS B6): a lane per visited
+/** One case's journey through the zones: a lane per visited
  * zone, a bar per case-zone stay, cursor at the current replay moment. */
 function CaseJourney({
   caseId,

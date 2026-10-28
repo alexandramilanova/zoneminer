@@ -13,7 +13,7 @@ import threading
 from collections import OrderedDict
 from typing import Optional
 
-from backend import store
+from backend import config, store
 from backend.jobs import Job
 from services import build_zone_analysis, compute_alignment_tables, load_model_inputs
 from services.pipeline import ModelBundle
@@ -25,13 +25,15 @@ _bundle_lock = threading.Lock()
 
 
 def get_bundle(dataset_id: str) -> ModelBundle:
+    # The same input hash in two workspaces must not share an in-memory log.
+    cache_key = dataset_id if config.data_dir() == config.DATA_DIR else (config.data_dir(), dataset_id)
     with _bundle_lock:
-        loading = _bundle_load_locks.setdefault(dataset_id, threading.Lock())
+        loading = _bundle_load_locks.setdefault(cache_key, threading.Lock())
     with loading:
         with _bundle_lock:
-            cached = _bundle_cache.get(dataset_id)
+            cached = _bundle_cache.get(cache_key)
             if cached is not None:
-                _bundle_cache.move_to_end(dataset_id)
+                _bundle_cache.move_to_end(cache_key)
                 return cached
         log_path, pnml_path = store.dataset_file_paths(dataset_id)
         if log_path is None:
@@ -66,8 +68,8 @@ def get_bundle(dataset_id: str) -> ModelBundle:
         else:
             bundle = load_model_inputs(log_bytes, os.path.splitext(log_path)[1], pnml_bytes)
         with _bundle_lock:
-            _bundle_cache[dataset_id] = bundle
-            _bundle_cache.move_to_end(dataset_id)
+            _bundle_cache[cache_key] = bundle
+            _bundle_cache.move_to_end(cache_key)
             while len(_bundle_cache) > _MODEL_CACHE_SIZE:
                 _bundle_cache.popitem(last=False)
         return bundle

@@ -1,4 +1,4 @@
-/** Zone × window heatmap (EXTENSIONS B5).
+/** Zone × window heatmap.
  *
  * One row per zone, one cell per time window, colored on the theme's
  * sequential ramp (--heat-0 → --heat-1 via CSS color-mix, so it re-themes

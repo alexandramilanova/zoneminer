@@ -1,7 +1,38 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useAppState } from "../state";
 import Tour from "./Tour";
+import { sessionInfo, type SessionInfo } from "../api";
+
+function SessionNotice() {
+  const [info, setInfo] = useState<SessionInfo | null>(null);
+  const [error, setError] = useState("");
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    sessionInfo().then(setInfo).catch((e: Error) => setError(e.message));
+  }, []);
+  useEffect(() => {
+    if (!info?.expires_at) return;
+    const update = () => setExpired(Date.now() / 1000 >= info.expires_at!);
+    update();
+    const timer = window.setInterval(update, 10000);
+    return () => window.clearInterval(timer);
+  }, [info]);
+  if (!error && info?.mode !== "anonymous") return null;
+  const reset = async () => {
+    const response = await fetch("/api/session", { method: "DELETE" });
+    if (!response.ok) { setError("Session could not be deleted. Please try again."); return; }
+    localStorage.removeItem("zone-analytics-current");
+    window.location.assign(window.location.pathname);
+  };
+  return <div className="notice" role="status">
+    {error || (expired ? "This temporary session has expired. Start a new session to continue." :
+      `Temporary private workspace. Uploads and results expire at ${new Date(info!.expires_at! * 1000).toLocaleString()}. Download results you want to keep.${info!.upload_mb === null ? "" : ` Upload limit: ${info!.upload_mb} MB.`}`)}
+    {" "}<button onClick={() => { void reset().catch(() => setError("Session could not be deleted. Please try again.")); }}>
+      {expired || error ? "Start new session" : "Delete session and files"}
+    </button>
+  </div>;
+}
 
 function Icon({ d, size = 16 }: { d: string; size?: number }) {
   return (
@@ -93,11 +124,13 @@ export default function Layout() {
           <div className="row" style={{ gap: 8 }}>
             <ThemeToggle />
             {ready && <Tour />}
+            <a href="/THIRD_PARTY_NOTICES.txt" target="_blank" rel="noreferrer">Licenses</a>
           </div>
         </div>
       </aside>
       <main className="main fade-in">
-        <Outlet />
+        <SessionNotice />
+        <Suspense fallback={<p role="status">Loading view…</p>}><Outlet /></Suspense>
       </main>
     </div>
   );

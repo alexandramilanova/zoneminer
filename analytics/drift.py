@@ -1,4 +1,4 @@
-"""Per-zone multivariate drift scores (EXTENSIONS A9).
+"""Per-zone multivariate drift scores.
 
 One series per zone answering "how much did this zone's *overall* behavior
 change here?" — complementary to PELT change points on single metrics

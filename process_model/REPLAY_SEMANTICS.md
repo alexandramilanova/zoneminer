@@ -84,7 +84,19 @@ identities survive memory-cache eviction and server restarts. Its provenance
 remains `discovered_from_log`. Validated replay tables are cached by dataset,
 backend, and import/replay version, independently of zone and time-window
 choices. Changing either choice reuses these tables but recomputes zone metrics.
-The chronological-import version does not reuse older analytical artifacts.
+The `canonical-alignment-replay-v4` namespace does not reuse older analytical artifacts.
+Native input uses stable structural UUIDs and ordered nodes/arcs/markings.
+Before assigning inferred times, a canonical topological order preserves every
+observed event's order and every ordering between firings sharing a place.
+Only independent firings within a recorded-time group can commute; distinct
+observed timestamps remain barriers. Inferred moves use structural tie breaking
+within those constraints. Transition identities,
+weighted enabledness, final markings and alignment costs are preserved. The
+existing previous-clock-plus-one-microsecond convention then applies to this
+representative. This makes commuting interleavings reproducible, not uniquely
+observed: genuinely different optimal paths remain a reconstruction limitation.
+Existing saved analyses remain historical records; rerun them after upgrading
+to produce results under the current replay version.
 
 Rust4PM aligns distinct activity sequences in native parallel batches of up to
 64 variants. Compact activity-only projections retain each variant's frequency;
@@ -95,7 +107,7 @@ Search failures or missing/duplicate results fail the analysis instead of
 publishing a partial replay. Alignment costs and search options are unchanged.
 Rust4PM uses Rayon workers; `RAYON_NUM_THREADS` can bound their count when set
 before server startup. Parallel search increases peak memory relative to serial
-alignment. Completed replay caches remain compatible and need no invalidation.
+alignment. Within a replay version, completed caches can be reused.
 Use `python tools/benchmark_alignments.py` to compare the old serial calls with
 native batches on the showcase (or supply `--log` and optional `--pnml`). The
 benchmark checks equal costs and fitness and validates both token histories on

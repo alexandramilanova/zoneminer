@@ -11,9 +11,18 @@ if not exist ".venv\Scripts\python.exe" (
   echo  The Python environment is missing. One-time setup:
   echo    1^) install Python 3.12+ from python.org
   echo    2^) run:  python -m venv .venv
-  echo    3^) run:  .venv\Scripts\pip install -r requirements.txt
+  echo    3^) run:  .venv\Scripts\pip install --require-hashes -r requirements.txt
   echo  Then double-click this file again.
   echo.
+  pause
+  exit /b 1
+)
+
+if not exist "frontend\dist\index.html" (
+  echo  The frontend has not been built. Install Node.js 22, then run:
+  echo    cd frontend
+  echo    npm ci
+  echo    npm run build
   pause
   exit /b 1
 )

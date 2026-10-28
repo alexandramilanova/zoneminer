@@ -231,7 +231,7 @@ class DomainLogicTests(unittest.TestCase):
 
 
 class OrderInversionStatsTests(unittest.TestCase):
-    """FIFO/overtaking statistics (EXTENSIONS A1): hand-checked small cases."""
+    """FIFO/overtaking statistics: hand-checked small cases."""
 
     @staticmethod
     def _stats(entries, exits):
@@ -274,7 +274,7 @@ class OrderInversionStatsTests(unittest.TestCase):
 
 
 class RevisitMetricsTests(unittest.TestCase):
-    """Revisit/rework metrics (EXTENSIONS A5) on a hand-built scenario."""
+    """Revisit/rework metrics on a hand-built scenario."""
 
     def test_revisit_counts_ratio_and_gap(self):
         token_place_df = pd.DataFrame(
@@ -313,7 +313,7 @@ class RevisitMetricsTests(unittest.TestCase):
 
 
 class BatchFlagsTests(unittest.TestCase):
-    """Batching-on-exit detection (EXTENSIONS A2): hand-checked small cases.
+    """Batching-on-exit detection: hand-checked small cases.
 
     Times in minutes for readability; converted to ns on call.
     """

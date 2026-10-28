@@ -9,6 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from backend import store
+from backend.isolation import endpoint
 from backend.runner import get_bundle
 from backend.zone_requests import ZoneConfiguration
 from process_model.zone_suggestions import (
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
 
 @router.get("")
+@endpoint
 def list_datasets():
     return store.list_datasets()
 
@@ -31,40 +33,80 @@ async def upload_dataset(
     pnml: Optional[UploadFile] = File(None),
     name: Optional[str] = None,
 ):
-    log_bytes = await log.read()
-    if not log_bytes:
-        raise HTTPException(400, "Empty log file")
-    suffix = (log.filename or "").lower()
-    if not (suffix.endswith(".csv") or suffix.endswith(".xes")):
-        raise HTTPException(
-            400, "Unsupported log format — upload a .csv or .xes file (uncompressed)"
-        )
-    pnml_bytes = await pnml.read() if pnml is not None else None
+    import hashlib
+    import os
+    from pathlib import Path
+    import tempfile
+    from backend import config, isolation
+    from backend.sessions import check_storage
 
-    dataset_id = store.dataset_id_for(log_bytes, pnml_bytes)
-    existing = store.get_dataset(dataset_id)
-    if existing:
-        return {**existing, "deduplicated": True}
+    log_name = Path(log.filename or "log.csv").name[:200]
+    suffix = Path(log_name).suffix.lower()
+    if suffix not in {".csv", ".xes"}:
+        raise HTTPException(400, "Unsupported log format — upload a .csv or .xes file (uncompressed)")
+    dataset_limit = config.optional_limit("MAX_DATASETS")
+    if dataset_limit is not None and len(store.list_datasets()) >= dataset_limit:
+        raise HTTPException(429, "This workspace has reached its dataset limit.")
+    config.ensure_dirs()
+    digest = hashlib.sha256()
 
-    meta = store.save_dataset(
-        dataset_id,
-        name or (log.filename or dataset_id),
-        log_bytes,
-        log.filename or "log.csv",
-        pnml_bytes,
-        pnml.filename if pnml else None,
-    )
-    # Fail fast on unparseable inputs so the client gets a clear error now,
-    # not a broken analysis later — and remove the orphaned dataset again.
-    try:
-        await run_in_threadpool(get_bundle, dataset_id)
-    except Exception as exc:
-        store.delete_dataset(dataset_id)
-        raise HTTPException(422, f"Uploaded files could not be parsed: {exc}")
-    return {**meta, "deduplicated": False}
+    async def copy_upload(upload, path, maximum, xml=False):
+        total = 0
+        tail = b""
+        with open(path, "wb") as output:
+            while chunk := await upload.read(64 * 1024):
+                total += len(chunk)
+                if maximum is not None and total > maximum:
+                    raise HTTPException(413, "File exceeds the upload limit.")
+                if xml:
+                    scan = (tail + chunk).replace(b"\x00", b"").lower()
+                    if b"<!doctype" in scan or b"<!entity" in scan:
+                        raise HTTPException(400, "XML document types and entities are not supported.")
+                    tail = chunk[-64:]
+                digest.update(chunk)
+                output.write(chunk)
+                if total // (4 * 1024 * 1024) != (total - len(chunk)) // (4 * 1024 * 1024):
+                    check_storage()
+        if not total:
+            raise HTTPException(400, "Empty upload file")
+
+    with tempfile.TemporaryDirectory(prefix="upload-", dir=config.data_dir()) as tmp:
+        log_path = os.path.join(tmp, "log" + suffix)
+        model_path = os.path.join(tmp, "model.pnml") if pnml else None
+        try:
+            upload_limit = config.optional_limit("UPLOAD_MB")
+            model_limit = config.optional_limit("MODEL_MB")
+            await copy_upload(log, log_path, upload_limit * 1024 * 1024 if upload_limit else None, suffix == ".xes")
+            digest.update(b"\x00")
+            if pnml:
+                await copy_upload(pnml, model_path, model_limit * 1024 * 1024 if model_limit else None, True)
+            check_storage()
+            dataset_id = digest.hexdigest()[:16]
+            existing = store.get_dataset(dataset_id)
+            if existing:
+                return {**existing, "deduplicated": True}
+            meta = store.save_dataset_files(dataset_id, (name or log_name)[:200], log_path, log_name,
+                                            model_path, "model.pnml" if pnml else None)
+            try:
+                if config.data_dir() != config.DATA_DIR:
+                    await run_in_threadpool(isolation.run, "backend.isolation", "parse_dataset", dataset_id)
+                else:
+                    await run_in_threadpool(get_bundle, dataset_id)
+                check_storage()
+            except Exception as exc:
+                store.delete_dataset(dataset_id)
+                if isinstance(exc, HTTPException):
+                    raise
+                raise HTTPException(422, "Uploaded files could not be parsed. Check the log and model formats.")
+            return {**meta, "deduplicated": False}
+        finally:
+            await log.close()
+            if pnml:
+                await pnml.close()
 
 
 @router.get("/{dataset_id}")
+@endpoint
 def get_dataset(dataset_id: str):
     meta = store.get_dataset(dataset_id)
     if meta is None:
@@ -73,6 +115,7 @@ def get_dataset(dataset_id: str):
 
 
 @router.get("/{dataset_id}/model")
+@endpoint
 def get_model_graph(dataset_id: str):
     """Petri-net structure as plain JSON for browser-side rendering."""
     try:
@@ -109,6 +152,7 @@ class ZoneValidationRequest(ZoneConfiguration):
 
 
 @router.post("/{dataset_id}/zones/validate")
+@endpoint
 def validate_zone_system(dataset_id: str, body: ZoneValidationRequest):
     try:
         bundle = get_bundle(dataset_id)
@@ -132,6 +176,7 @@ def validate_zone_system(dataset_id: str, body: ZoneValidationRequest):
 
 
 @router.get("/{dataset_id}/bpmn.xml")
+@endpoint
 def get_bpmn_xml(dataset_id: str):
     """BPMN 2.0 XML of the readable model view (for browser-side bpmn-js)."""
     import os
@@ -161,6 +206,7 @@ def get_bpmn_xml(dataset_id: str):
 
 
 @router.get("/{dataset_id}/process-tree.svg")
+@endpoint
 def get_process_tree_svg(dataset_id: str):
     """Readable process-tree helper view, rendered server-side to SVG."""
     from fastapi.responses import Response
@@ -184,6 +230,7 @@ class ZoneSuggestionRequest(BaseModel):
 
 
 @router.post("/{dataset_id}/zones/suggest")
+@endpoint
 def suggest_zone_places(dataset_id: str, body: ZoneSuggestionRequest):
     """Suggest Petri-net places for a zone from selected activity labels."""
     try:

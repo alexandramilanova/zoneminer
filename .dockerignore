@@ -8,6 +8,11 @@ __pycache__
 **/__pycache__
 *.pyc
 .pytest_cache
+.cache
+.DS_Store
+.env
+.env.*
+.streamlit/secrets.toml
 
 # private / not for distribution
 thesis

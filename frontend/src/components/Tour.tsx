@@ -105,6 +105,17 @@ export default function Tour() {
         event.stopPropagation();
         close();
       }
+      if (event.key === "Tab" && tooltip.current?.contains(document.activeElement)) {
+        // Safari's default keyboard settings skip buttons. Keep the tour's
+        // internal order consistent, while allowing Tab to leave either end.
+        const buttons = [...tooltip.current.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
+        const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const adjacent = index >= 0 ? buttons[index + (event.shiftKey ? -1: 1)]: undefined;
+        if (adjacent) {
+          event.preventDefault();
+          adjacent.focus();
+        }
+      }
     };
     document.addEventListener("keydown", onKey, true);
     return () => {
@@ -137,7 +148,7 @@ export default function Tour() {
     const measure = () => {
       const scope = host === document.body ? document.querySelector("main") : host;
       const candidatesIn = (selector: string) => [...(scope?.querySelectorAll<HTMLElement>(selector) ?? [])]
-        .find((el) => !layer.current?.contains(el) && el.getClientRects().length > 0);
+     .find((el) => !layer.current?.contains(el) && el.getClientRects().length > 0);
       const found = candidatesIn("[data-tour-target]") ?? candidatesIn("h1, h2") ??
         (host !== document.body ? candidatesIn("button, input, select") : null) ?? null;
       if (found !== target) {
@@ -160,7 +171,7 @@ export default function Tour() {
       ] : [[width - tip.width - 12, height - tip.height - 12]];
       const candidates = choices.map(([x, y]) => ({ left: clamp(x, width - tip.width - 12), top: clamp(y, height - tip.height - 12) }));
       const controls = [...(scope?.querySelectorAll<HTMLElement>("button, input, select, textarea, a, summary, [role=button]") ?? [])]
-        .filter((el) => !layer.current?.contains(el)).map((el) => el.getBoundingClientRect());
+     .filter((el) => !layer.current?.contains(el)).map((el) => el.getBoundingClientRect());
       const area = (p: { left: number; top: number }, rect: DOMRect) =>
         Math.max(0, Math.min(p.left + tip.width, rect.right) - Math.max(p.left, rect.left)) *
         Math.max(0, Math.min(p.top + tip.height, rect.bottom) - Math.max(p.top, rect.top));

@@ -1,4 +1,4 @@
-/** Zone-graph abstraction (EXTENSIONS B8): the process collapsed to one node
+/** Zone-graph abstraction: the process collapsed to one node
  * per zone. Node size = tokens currently in the zone, node color = the zone's
  * identity color, halo = current bottleneck state (labeled in the legend and
  * tooltip — color is never the sole encoding). Edges = handover volume.

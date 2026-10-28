@@ -1,3 +1,9 @@
+---
+title: ZoneMiner
+sdk: docker
+app_port: 7860
+---
+
 # ZoneMiner — token-flow analysis for business processes
 
 ZoneMiner analyzes business processes at an intermediate granularity between
@@ -86,11 +92,11 @@ process_model/       Process-mining core: log/PNML IO, alignment replay,
   alignment_backends.py  switchable alignment engines: rust4pm (fast, default)
                          and pm4py (reference) — identical optimal costs
 analytics/           Time-series analyses over the zone-feature table: alerts,
-                     change points (PELT), lagged correlations; a separate causal
-                     forecasting path and a retained retrospective ML reference,
+                     change points (PELT), lagged correlations; retrospective
+                     classification and a restricted prospective research API,
                      canonical metric schema
 app.py               Legacy Streamlit app — kept as the reference implementation
-                     ("the oracle") until the rebuild is archived; new numbers
+                     ("the oracle") for numerical parity checks; new numbers
                      are checked against it (tools/parity_gate.py)
 data/demo/           Bundled demo dataset: seeded e-commerce order-fulfillment
                      log + hand-built Petri net + five-zone system
@@ -110,7 +116,7 @@ legacy interface; install it through your OS package manager.
 git clone https://github.com/alexandramilanova/zoneminer.git
 cd zoneminer
 python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.txt
 
 # build the frontend once
 cd frontend && npm ci && npm run build && cd ..
@@ -147,6 +153,11 @@ The legacy Streamlit interface still works: `pip install streamlit`, then
 
 ## Tests
 
+Python dependencies are generated from `pyproject.toml` into hash-verified locks.
+For tests and the legacy interface, install
+`pip install --require-hashes -r requirements-test.txt`.
+See [dependency locking and license review](docs/dependency-review.md).
+
 ```bash
 python -m unittest discover -s tests   # unit, regression baseline, API, backend parity
 python tools/parity_gate.py            # oracle vs API (pm4py exact, r4pm within tolerance)
@@ -154,6 +165,12 @@ python tools/parity_gate.py            # oracle vs API (pm4py exact, r4pm within
 
 CI runs both plus the frontend build on every push (`.github/workflows/tests.yml`).
 Browser tests run separately; see [frontend/tests/README.md](frontend/tests/README.md).
+
+Local mode keeps a persistent trusted workspace. The optional anonymous runtime
+isolates visitors in temporary workspaces with expiry, deletion, and resource
+limits; see [the runtime contract](docs/anonymous-workspaces.md).
+See [Hugging Face setup](docs/hugging-face.md) for private staging and the
+[dependency requirements](docs/dependency-review.md) before public release.
 
 ## Data
 
@@ -182,8 +199,6 @@ change, persists discovered model identities, and separates alignment, token
 reconstruction, and conformance progress. Its bounded model cache and compute
 queue limit overlapping memory use. See [Replay semantics](process_model/REPLAY_SEMANTICS.md)
 for cache versioning, configuration, and scalability limits.
-The [full-log validation report](docs/large-log-validation.md) records the local
-BPI2020 reproduction, exact before/after comparisons, timings, and test evidence.
 
 ## Methodological notes (deliberate scope boundaries)
 
@@ -221,4 +236,5 @@ Release details and a citation will be added when published.
 Application code: MIT — see [LICENSE](LICENSE). Dependencies retain their own
 licenses. PM4Py is used for model and log operations even with the default
 rust4pm alignment engine; its licensing is relevant to the distributed stack.
-Refer to the dependencies' upstream licenses for their terms.
+Refer to [dependency requirements](docs/dependency-review.md) and
+[frontend redistribution notices](THIRD_PARTY_NOTICES.txt).

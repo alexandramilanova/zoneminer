@@ -1,5 +1,5 @@
 import { formatDuration } from "../lib/metricPresentation";
-/** Two-column Sankey of inter-zone handovers (EXTENSIONS B3), hand-drawn SVG.
+/** Two-column Sankey of inter-zone handovers, hand-drawn SVG.
  *
  * Left = source zones, right = target zones; ribbon width is handover volume,
  * ribbon color follows the source zone (identity stays consistent with every

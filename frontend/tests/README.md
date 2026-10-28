@@ -12,9 +12,21 @@ folder), run from `frontend/`:
 
 ```sh
 npm ci
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
+
+The default suite now uses Chromium, Firefox and WebKit. Install all three with
+`npx playwright install chromium firefox webkit`. A Chrome executable override
+applies only to the Chromium project. Use `--project=chromium` for a targeted run.
+WebKit coverage is not a substitute for a final check in branded Safari.
+
+The separate anonymous suite uses its own isolated API configured for anonymous
+mode, with HTTP-only localhost cookie support enabled for that test server:
+`E2E_BASE_URL=http://127.0.0.1:17883 npx playwright test --config anonymous.playwright.config.ts`.
+It exercises real uploads, analysis, cross-visitor isolation and deletion in all
+three engines. The full local suite intentionally shares fixtures across test
+contexts and should not target anonymous mode.
 
 Playwright starts Vite automatically. To test the built application served by a
 Docker container instead, set `E2E_BASE_URL=http://127.0.0.1:7860`.

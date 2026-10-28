@@ -80,7 +80,8 @@ test('marker timestamps, pixel positions, hover and table agree', async ({ page 
   await expect.poll(async () => (await shapes(plot)).length).toBe(2);
   const geometry = await graphs(plot).evaluate((el: any) => {
     const axis = el._fullLayout.xaxis, origin = el.getBoundingClientRect().left;
-    return [...el.querySelectorAll('.shapelayer path')].map((p: any, i) => ({ actual: p.getBoundingClientRect().x,
+    // Measure the centerline; SVG stroke bounds differ between browser engines.
+    return [...el.querySelectorAll('.shapelayer path')].map((p: any, i) => ({ actual: p.getPointAtLength(0).matrixTransform(p.getScreenCTM()).x,
       expected: origin + axis._offset + axis.d2p(el.layout.shapes[i].x0) }));
   });
   for (const point of geometry) expect(Math.abs(point.actual - point.expected)).toBeLessThan(2);

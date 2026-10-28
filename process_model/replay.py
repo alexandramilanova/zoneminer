@@ -176,7 +176,7 @@ def compute_alignments(log, net: PetriNet, im: Marking, fm: Marking):
         variant = align_algo.Variants.VERSION_DIJKSTRA_SEMANTICS
     raw = align_algo.apply_log(log, net, im, fm, parameters=parameters, variant=variant)
     results = []
-    for alignment in raw:
+    for trace, alignment in zip(log, raw):
         if alignment is None or alignment.get("alignment") is None:
             raise ValueError("pm4py could not find a complete alignment to the specified final marking")
         labels = []
@@ -188,7 +188,9 @@ def compute_alignments(log, net: PetriNet, im: Marking, fm: Marking):
                 names[position] = identities[1]
                 if pair[1] is None:
                     taus[position] = identities[1]
-        results.append({**alignment, "alignment": labels, "transition_names": names, "tau_names": taus})
+        from process_model.alignment_order import canonical_alignment
+        results.append(canonical_alignment({**alignment, "alignment": labels, "transition_names": names, "tau_names": taus}, net,
+                                           [event["time:timestamp"] for event in trace]))
     return results
 
 

@@ -22,6 +22,7 @@ dependencies = [
   "fastapi",
   "uvicorn[standard]",
   "duckdb",
+  "pyarrow",
   "python-multipart",
   # exact pin: upstream warns of breaking changes in minor/patch releases
   "r4pm==0.6.0.post1",

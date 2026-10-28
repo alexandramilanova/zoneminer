@@ -4,7 +4,7 @@ Run in development with:
     uvicorn backend.main:app --reload --port 8000
 
 In the local Docker application the built React frontend (frontend/dist) is
-served by this same app, so one free-tier container hosts everything.
+served by this same app, so one container hosts the interface and API.
 """
 
 from __future__ import annotations
@@ -12,9 +12,11 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 # Python's mimetypes reads the Windows registry, which frequently maps .js to
@@ -112,7 +114,55 @@ def register_example_datasets() -> None:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(
+    @asynccontextmanager
+    async def lifespan(application):
+        import threading
+        config.ensure_dirs()
+        register_demo_dataset()
+        register_example_datasets()
+        stop = threading.Event()
+        sweeper = None
+        guard = None
+        if config.MODE == "anonymous":
+            import fcntl
+            guard = open(os.path.join(config.DATA_DIR, "anonymous.lock"), "a")
+            try:
+                fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                guard.close()
+                raise RuntimeError("Anonymous mode requires exactly one API process per data directory")
+            sessions = application.state.sessions
+            sessions.cleanup()
+            # A previous API process may have stopped while jobs were queued.
+            # Their progress handles no longer exist; mark persisted rows clearly.
+            for lease in sessions.leases.values():
+                context = config.WORKSPACE.set(lease.root)
+                try:
+                    for meta in store.list_analyses():
+                        if meta["status"] in {"queued", "running"}:
+                            store.upsert_analysis(meta["id"], meta["dataset_id"], meta["zone_places"],
+                                                  meta["timeframe"], meta["backend"], "error", "Interrupted by server restart")
+                finally:
+                    config.WORKSPACE.reset(context)
+            def sweep():
+                import logging
+                while not stop.wait(60):
+                    try:
+                        sessions.cleanup()
+                    except OSError:
+                        logging.getLogger(__name__).error("Workspace expiry cleanup failed; will retry")
+            sweeper = threading.Thread(target=sweep, daemon=True, name="workspace-expiry")
+            sweeper.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            if sweeper:
+                sweeper.join(timeout=5)
+            if guard:
+                guard.close()
+
+    app = FastAPI(lifespan=lifespan,
         title="ZoneMiner API",
         description=(
             "Zone-based token-flow analytics over business-process event logs. "
@@ -129,6 +179,22 @@ def create_app() -> FastAPI:
     )
     app.include_router(datasets.router)
     app.include_router(analyses.router)
+
+    if config.MODE == "anonymous":
+        import threading
+        from backend.sessions import AnonymousMiddleware, Sessions
+        sessions = Sessions()
+        app.state.sessions = sessions
+        app.add_middleware(AnonymousMiddleware, sessions=sessions)
+    @app.get("/api/session")
+    def session_info(request: Request):
+        return {"mode": config.MODE, "expires_at": getattr(request.state, "session_expires", None),
+                "upload_mb": config.optional_limit("UPLOAD_MB"), "workspace_mb": config.optional_limit("WORKSPACE_MB")}
+
+    @app.delete("/api/session")
+    def end_session():
+        # AnonymousMiddleware handles expiry even when the old cookie expired.
+        return Response(status_code=204)
 
     @app.get("/api/health")
     def health():
@@ -154,11 +220,9 @@ def create_app() -> FastAPI:
         """Bundled example scenarios, each spotlighting one analysis family."""
         return {"examples": list_examples()}
 
-    @app.on_event("startup")
-    def _startup() -> None:
-        config.ensure_dirs()
-        register_demo_dataset()
-        register_example_datasets()
+    @app.get("/THIRD_PARTY_NOTICES.txt", include_in_schema=False)
+    def dependency_notices():
+        return FileResponse(os.path.join(config.REPO_ROOT, "THIRD_PARTY_NOTICES.txt"), media_type="text/plain")
 
     if os.path.isdir(config.FRONTEND_DIST):
         app.mount("/", StaticFiles(directory=config.FRONTEND_DIST, html=True), name="frontend")

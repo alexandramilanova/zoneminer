@@ -95,8 +95,25 @@ def _net_to_r4pm(net: PetriNet, im: Marking, fm: Marking):
     validate_petri_net(net, im, fm)
     if im is None or fm is None:
         raise ValueError("Replay requires explicit initial and final markings")
-    place_uuid = {p.name: str(uuid.uuid4()) for p in net.places}
-    trans_uuid = {t.name: str(uuid.uuid4()) for t in net.transitions}
+    # Random UUIDs and set iteration changed which equally optimal silent path
+    # native search chose, making inferred microsecond timings vary on reload.
+    # Stable structural IDs preserve original names in the reverse mapping.
+    places = sorted(net.places, key=lambda p: p.name)
+    place_uuid = {p.name: str(uuid.uuid5(uuid.NAMESPACE_URL, "zoneminer/place/" + p.name)) for p in places}
+
+    def structure(t):
+        return json.dumps([t.label,
+                           sorted((a.source.name, int(a.weight)) for a in t.in_arcs),
+                           sorted((a.target.name, int(a.weight)) for a in t.out_arcs)])
+
+    transitions = sorted(net.transitions, key=lambda t: (structure(t), t.name))
+    occurrences = Counter()
+    trans_uuid = {}
+    for transition in transitions:
+        key = structure(transition)
+        ordinal = occurrences[key]
+        occurrences[key] += 1
+        trans_uuid[transition.name] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"zoneminer/transition/{key}/{ordinal}"))
     name_by_uuid = {u: name for name, u in trans_uuid.items()}
     label_by_uuid = {trans_uuid[t.name]: t.label for t in net.transitions}
 
@@ -109,6 +126,7 @@ def _net_to_r4pm(net: PetriNet, im: Marking, fm: Marking):
             nodes = [trans_uuid[arc.source.name], place_uuid[arc.target.name]]
             arc_type = "TransitionPlace"
         arcs.append({"from_to": {"type": arc_type, "nodes": nodes}, "weight": int(arc.weight)})
+    arcs.sort(key=lambda arc: json.dumps(arc, sort_keys=True))
 
     r_net = {
         "places": {u: {"id": u} for u in place_uuid.values()},
@@ -116,8 +134,8 @@ def _net_to_r4pm(net: PetriNet, im: Marking, fm: Marking):
             u: {"id": u, "label": label_by_uuid[u]} for u in trans_uuid.values()
         },
         "arcs": arcs,
-        "initial_marking": {place_uuid[p.name]: int(c) for p, c in im.items() if c},
-        "final_markings": [{place_uuid[p.name]: int(c) for p, c in fm.items() if c}],
+        "initial_marking": {place_uuid[p.name]: int(c) for p, c in sorted(im.items(), key=lambda item: item[0].name) if c},
+        "final_markings": [{place_uuid[p.name]: int(c) for p, c in sorted(fm.items(), key=lambda item: item[0].name) if c}],
     }
     return r_net, name_by_uuid, label_by_uuid
 
@@ -171,7 +189,9 @@ def compute_alignments_r4pm(log, net: PetriNet, im: Marking, fm: Marking, progre
         variant_cache.update(completed)
         if progress:
             progress(len(variant_cache), total_variants)
-    return [variant_cache[labels] for labels in trace_labels]
+    from process_model.alignment_order import canonical_alignment
+    return [canonical_alignment(variant_cache[labels], net, [event["time:timestamp"] for event in trace])
+            for labels, trace in zip(trace_labels, log)]
 
 
 def _align_variant_batch(r4pm, binding_id, r_net, frequencies, options):

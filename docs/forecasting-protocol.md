@@ -1,8 +1,8 @@
 # Restricted prospective research API protocol
 
-The Prediction screen now uses the [retrospective workflow](retrospective-prediction.md).
+The Prediction screen uses the [retrospective workflow](retrospective-prediction.md).
 The following restricted prospective endpoints remain available for research/API
-compatibility; they are no longer the frontend prediction workflow.
+compatibility; they are separate from the frontend prediction workflow.
 
 Status: restricted prospective profiles, `causal-calibrated-markings-v3`.
 This is an implementation restriction, not a claim that arbitrary Petri nets
@@ -232,9 +232,7 @@ is not proof that a log conforms or that a classifier can be trained.
 A separate deterministic browser fixture tests calibration, zone validation,
 all three classifiers, tree visualization, persistence and unchanged descriptive
 results. Its scores are correctness evidence, not real-world predictive validity.
-Public-log diagnostic results and exact source provenance are recorded in
-`docs/calibrated-forecast-diagnostics.md`. No earlier repaired-history scores are
-claimed as an unbiased comparison with this protocol.
+Software tests and feasibility diagnostics do not establish real-world predictive validity.
 
 ## Reproducible feasibility diagnostics
 
@@ -253,65 +251,3 @@ The diagnostic checks every case even after finding an incompatible one, but
 never trains by discarding failed cases. Language compatibility alone does not
 establish predictive usefulness. Downloaded raw originals differ from previously
 supplied fitted/filtered files.
-
-## Validation evidence
-
-Recorded v3 validation before the retrospective UI replacement: 196 Python tests, 49 production Chrome tests and the
-frontend/Docker builds pass; the final-image prediction subset has five passing
-tests. The descriptive parity gate passes with unchanged tolerances/baselines.
-See [the diagnostic report](calibrated-forecast-diagnostics.md) for real-log
-support limits and the distinction between scientific tests and model scores.
-
-
-Historical v2 immediate-routing extension (15 October 2026): 185 Python tests and 48 production
-Chrome browser tests passed, together with the frontend/Docker builds and the
-existing descriptive parity gate. Before implementation, six deterministic
-routing tests failed against the blanket silent-transition rejection. Eleven
-independent tests in `tests/test_immediate_routing.py` now cover weighted chains,
-initial routing and provenance, concurrent split/join enabledness, unfinished
-cases, exact window boundaries, future-isolated features and all three model
-predictions, silent/visible choices, disabled potential competitors, silent
-cycles, explicit visible deviations, JSON-safe audit metadata, and exactly equal
-descriptive replay tables before/after prediction. No analytical
-baseline, source dataset, generator or Petri-net definition was changed.
-
-The browser fixture uses a deterministic supplied net with forced silent routing;
-its successful classification is integration evidence, not a new showcase
-benchmark or proof of general predictive usefulness. The v2 showcase rejection recorded above is historical; v3 instead permits
-marking-set attempts and rejects actual incompatible observations or metrics. Full-log automatic discovery, model/log
-incompatibility, timestamp ties, class availability, evaluation eligibility and
-resource limits remain separate restrictions.
-
-Original v1 validation record (historical; the paper source edits in this
-immediate-routing extension have not been recompiled):
-
-- Complete Python suite: 163 tests pass, including 16 independent forecasting tests.
-- Production Chrome browser suite: 46 tests pass; real 3-model correctness fixture,
-  real showcase rejection, tree/SHAP, required controls and holdout cache/reuse.
-- Frontend and Docker builds pass; descriptive parity gate passes (pm4py exact;
-  Rust4PM counts exact, documented continuous tolerances unchanged).
-- Screenshot fixtures and their high scores are **not** evidence of useful
-  forecasting on the demonstration datasets. No corrected real-log performance
-  comparison is claimed.
-
-
-## Changed implementation files
-
-- `process_model/prefix.py`: weighted prefix replay, forced immediate silent routing, separate derived history and explicit rejection.
-- `process_model/features.py`: optional explicit observation grid only; default
-  descriptive algorithms/horizon remain unchanged.
-- `analytics/forecasting.py`: metric eligibility, causal snapshots, purged
-  development evaluation, frozen test evaluation, baselines, forecasts and SHAP.
-- `backend/forecasting.py`: required request contract, provenance and dataset-wide
-  holdout ledger; `backend/routers/analyses.py` exposes this path.
-- `frontend/src/api.ts`, `frontend/src/pages/Prediction.tsx`,
-  `frontend/src/components/ForecastShap.tsx`: typed contracts, explicit controls,
-  explanations and model comparison; the existing tree view is reused.
-- `app.py`: legacy-reference warning only, no replay or ML algorithm change.
-- `tests/test_forecasting.py`, `tests/test_backend_api.py`,
-  `frontend/tests/prediction.spec.ts`: independent science and integration checks.
-- `README.md`, `frontend/tests/README.md`, the separately maintained manuscript, and this document:
-  current capabilities, protocol, restrictions and validation evidence.
-
-No Petri net, generator, event dataset, analytical baseline, branch, or commit
-was changed by this work.

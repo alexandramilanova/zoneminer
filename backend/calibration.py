@@ -32,7 +32,7 @@ class StudyRequest(ZoneConfiguration):
 def _directory(identifier):
     if not re.fullmatch(r'[a-f0-9]{24}', identifier):
         raise ValueError('Invalid prediction calibration identity.')
-    return Path(config.DATA_DIR) / 'prediction_models' / identifier
+    return Path(config.data_dir()) / 'prediction_models' / identifier
 
 
 def calibration_prefix(log, cutoff):
@@ -91,12 +91,20 @@ def prepare(log, cutoff, timeframe):
     return graph(identifier)
 
 
-@lru_cache(maxsize=8)
 def load(identifier):
     directory = _directory(identifier)
+    return _load(str(directory))
+
+
+@lru_cache(maxsize=8)
+def _load(directory):
+    directory = Path(directory)
     if not (directory / 'metadata.json').exists():
         raise ValueError('Prediction calibration was not found. Prepare a model first.')
     return (*load_pnml(str(directory / 'model.pnml')), json.loads((directory / 'metadata.json').read_text()))
+
+
+load.cache_clear = _load.cache_clear
 
 
 def graph(identifier):

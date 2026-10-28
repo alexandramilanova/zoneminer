@@ -6,7 +6,7 @@ import os
 
 from backend import store
 
-REPLAY_CACHE_VERSION = 'chronological-exact-replay-v2'
+REPLAY_CACHE_VERSION = 'canonical-alignment-replay-v4'
 TABLES = ('token_place', 'conformance', 'alignment_moves')
 
 

@@ -2,7 +2,7 @@
  * Helper perspectives only — zones stay defined on the Petri net's places. */
 
 import { useEffect, useRef, useState } from "react";
-import BpmnNavigatedViewer from "bpmn-js/lib/NavigatedViewer";
+import type BpmnNavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { api } from "../api";
 
 export function BpmnView({ datasetId }: { datasetId: string }) {
@@ -13,12 +13,17 @@ export function BpmnView({ datasetId }: { datasetId: string }) {
     if (!ref.current) return;
     setError(null);
     let disposed = false;
-    const viewer = new BpmnNavigatedViewer({ container: ref.current });
-    api
-      .bpmnXml(datasetId)
-      .then((xml) => (disposed ? null : viewer.importXML(xml)))
+    let viewer: BpmnNavigatedViewer | undefined;
+    const container = ref.current;
+    Promise.all([import("bpmn-js/lib/NavigatedViewer"), api.bpmnXml(datasetId)])
+      .then(([module, xml]) => {
+        if (disposed) return;
+        viewer = new module.default({ container });
+        return viewer.importXML(xml);
+      })
+
       .then(() => {
-        if (!disposed) {
+        if (!disposed && viewer) {
           (viewer.get("canvas") as { zoom: (m: string, c: string) => void }).zoom(
             "fit-viewport",
             "auto",
@@ -28,7 +33,7 @@ export function BpmnView({ datasetId }: { datasetId: string }) {
       .catch((e: unknown) => { if (!disposed) setError(e instanceof Error ? e.message : "BPMN could not be loaded. Try again or use the Petri net."); });
     return () => {
       disposed = true;
-      viewer.destroy();
+      viewer?.destroy();
     };
   }, [datasetId]);
 

@@ -94,7 +94,7 @@ CANONICAL_METRICS: tuple[MetricSpec, ...] = (
         unit="ratio",
         description="Ratio of token exits to token entries in the current window.",
     ),
-    # Aging/tail metrics (EXTENSIONS A6, added 2026-08-11): SLA breaches are
+    # Aging/tail metrics: SLA breaches are
     # made of tail behavior, not means. The aging yardstick is the zone's
     # overall median completed token duration (whole timeline), so "aged"
     # keeps one meaning across windows.
@@ -203,7 +203,7 @@ CANONICAL_METRICS: tuple[MetricSpec, ...] = (
         basic_visible=True,
         default_ml=True,
     ),
-    # Revisit/rework metrics (EXTENSIONS A5, added 2026-08-11): a revisit is
+    # Revisit/rework metrics: a revisit is
     # a case's second-or-later maximal stay in the same zone (stay_id >= 2).
     # Rework is a classic waste indicator; pairs with the zone-attributed
     # deviation counts.
@@ -240,7 +240,7 @@ CANONICAL_METRICS: tuple[MetricSpec, ...] = (
             "same case last left this zone."
         ),
     ),
-    # Batching-on-exit metrics (EXTENSIONS A2, added 2026-08-11): a batch is
+    # Batching-on-exit metrics: a batch is
     # >= 3 stays whose exits cluster (consecutive gaps <= 15 min) while their
     # entries are spread out (exit span <= 25% of entry span) — the signature
     # of synchronized waiting, following Klijn & Fahland's performance-
@@ -287,7 +287,7 @@ CANONICAL_METRICS: tuple[MetricSpec, ...] = (
             "a descriptive duration difference, not a causal estimate of waiting."
         ),
     ),
-    # FIFO/overtaking order statistics (EXTENSIONS A1, added 2026-08-11):
+    # FIFO/overtaking order statistics:
     # computed pairwise over the case-zone stays completing in the window
     # (cross-window overtakes are not counted). Reveals service discipline
     # (priority handling, parallel servers, unstable queues) invisible to
@@ -455,7 +455,7 @@ CANONICAL_METRICS: tuple[MetricSpec, ...] = (
         default_dependency=True,
         default_ml=True,
     ),
-    # Zone-attributed fitness (EXTENSIONS A8, added 2026-08-11): each move's
+    # Zone-attributed fitness: each move's
     # unit mass is split equally over its adjacent zones (1/k for boundary
     # moves) — the documented normalization, so summing weights over zones
     # recovers every attributable move exactly once (the plain counts above

@@ -12,6 +12,11 @@ from process_model.replay import compute_alignments, token_place_table_from_alig
 from process_model.time_index import EventTimeIndex, IntervalTimeIndex
 
 
+def _utc_nanoseconds(series: pd.Series) -> np.ndarray:
+    """Explicit UTC instants and nanosecond units, including timezone-aware input."""
+    return pd.to_datetime(series, utc=True).dt.tz_localize(None).to_numpy(dtype="datetime64[ns]").astype("int64")
+
+
 def _validate_zone_places(zone_places: Dict[str, List[str]]) -> Dict[str, str]:
     place_to_zone: Dict[str, str] = {}
     multi: Dict[str, List[str]] = {}
@@ -115,7 +120,7 @@ def build_case_zone_stays_from_places(
 def _order_inversion_stats(
     entry_ns: np.ndarray, exit_ns: np.ndarray, max_pairs_n: int = 4000
 ) -> tuple:
-    """FIFO-order statistics over completed stays (EXTENSIONS A1).
+    """FIFO-order statistics over completed stays.
 
     Compares entry order vs. exit order pairwise (strict inequalities, so
     ties count as order-preserving):
@@ -186,7 +191,7 @@ def _batch_flags(
     compression: float = 0.25,
 ) -> dict:
     """Batching-on-exit detection over one zone's completed stays
-    (EXTENSIONS A2, following Klijn & Fahland's performance-spectrum batch
+    (following Klijn & Fahland's performance-spectrum batch
     mining, ported to zone boundaries).
 
     Inputs must be sorted by exit time. Consecutive exits with a gap
@@ -264,7 +269,7 @@ def _explode_zone_moves(
 
     ``weight`` is the move's unit mass split equally over its adjacent zones
     (1/k for a boundary move adjacent to k zones) — the documented
-    normalization for zone-attributed fitness (EXTENSIONS A8): summing
+    normalization for zone-attributed fitness: summing
     weights over zones recovers each attributable move exactly once, unlike
     the plain counts, where a boundary move deliberately counts for every
     adjacent zone."""
@@ -387,7 +392,7 @@ def build_zone_token_features_from_places(
                 czdf[col] = pd.Series(dtype=df["produced_ts"].dtype)
             czdf["duration"] = pd.Series(dtype="timedelta64[ns]")
 
-        # revisit/rework precomputation (EXTENSIONS A5): stay_id >= 2 marks a
+        # revisit/rework precomputation: stay_id >= 2 marks a
         # revisit; the gap to the same case's previous stay in this zone is
         # positive by construction (overlapping intervals would have merged)
         if not czdf.empty:
@@ -397,7 +402,7 @@ def build_zone_token_features_from_places(
             czdf = czdf.copy()
             czdf["prev_exit_ts"] = pd.Series(dtype=df["produced_ts"].dtype if explicit_grid else "datetime64[ns]")
 
-        # zone-level reference for aging metrics (EXTENSIONS A6): the median
+        # zone-level reference for aging metrics: the median
         # completed token duration over the whole timeline — a stable yardstick
         # for "how old is too old" that does not drift with the window
         _zone_completed_durations = (
@@ -410,11 +415,11 @@ def build_zone_token_features_from_places(
         )
 
         # batching-on-exit detection runs once over the zone's whole exit
-        # timeline (EXTENSIONS A2); the window loop below buckets members by
+        # timeline; the window loop below buckets members by
         # their own exit time and batches by their last member's exit time
         completed_sorted = czdf[czdf["exit_ts"].notna()].sort_values("exit_ts")
-        b_entry_ns = completed_sorted["entry_ts"].values.astype("datetime64[ns]").astype("int64")
-        b_exit_ns = completed_sorted["exit_ts"].values.astype("datetime64[ns]").astype("int64")
+        b_entry_ns = _utc_nanoseconds(completed_sorted["entry_ts"])
+        b_exit_ns = _utc_nanoseconds(completed_sorted["exit_ts"])
         bf = _batch_flags(
             b_entry_ns,
             b_exit_ns,
@@ -473,16 +478,16 @@ def build_zone_token_features_from_places(
             case_completion_ratio = float(case_exit) / float(case_enter) if case_enter > 0 else np.nan
 
             # FIFO/overtaking order statistics over the window's completed
-            # stays (EXTENSIONS A1) — needs valid entry AND exit timestamps
+            # stays — needs valid entry AND exit timestamps
             order_stays = completed_case_stays[completed_case_stays["entry_ts"].notna()]
             case_fifo_inversion_ratio, case_overtaken_rate, case_overtake_depth_mean = (
                 _order_inversion_stats(
-                    order_stays["entry_ts"].values.astype("datetime64[ns]").astype("int64"),
-                    order_stays["exit_ts"].values.astype("datetime64[ns]").astype("int64"),
+                    _utc_nanoseconds(order_stays["entry_ts"]),
+                    _utc_nanoseconds(order_stays["exit_ts"]),
                 )
             )
 
-            # sojourn tail + aging metrics (EXTENSIONS A6): SLA breaches live
+            # sojourn tail + aging metrics: SLA breaches live
             # in the tail, not the mean
             completed_durations = completed_case_stays["duration"].dt.total_seconds().dropna()
             if not completed_durations.empty:
@@ -505,7 +510,7 @@ def build_zone_token_features_from_places(
                 token_aged_open_share = np.nan
                 token_stagnation_index = np.nan
 
-            # revisit/rework metrics (EXTENSIONS A5), bucketed by entry time
+            # revisit/rework metrics, bucketed by entry time
             stays_entering = int(len(entering))
             revisits = entering[entering["stay_id"] >= 2]
             case_revisit_enter = int(len(revisits))
@@ -517,7 +522,7 @@ def build_zone_token_features_from_places(
                 float(revisit_gaps.dt.total_seconds().mean()) if not revisit_gaps.empty else np.nan
             )
 
-            # batching metrics (EXTENSIONS A2), bucketed by exit time
+            # batching metrics, bucketed by exit time
             exit_lo, exit_hi = np.searchsorted(b_exit_ns, [w0.value, w1.value], side="left")
             if exit_hi > exit_lo:
                 batched = bf["batched"][exit_lo:exit_hi]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from math import floor
 from typing import Iterable, Mapping, Sequence
 
 import numpy as np
@@ -63,10 +64,79 @@ def _run_pelt_cached(
     if len(values_key) < max(8, min_size * 2):
         return ()
 
-    y = np.asarray(values_key, dtype=float).reshape(-1, 1)
-    algo = rpt.Pelt(model=model, min_size=min_size, jump=jump).fit(y)
+    algo = _fitted_pelt(values_key, model, min_size, jump)
     bkps = algo.predict(pen=float(max(penalty, 0.0)))
     return tuple(int(b) for b in bkps if 0 < b < len(values_key))
+
+
+class _CachedL2(rpt.costs.CostL2):
+    """Reuse exact upstream variance costs throughout the penalty search.
+
+    Prefix-sum variance can change rounding and segmentation ties. Compute each
+    segment with the original CostL2 operation instead. Bound storage for long
+    hourly series; neither the signal nor the candidate grid is subsampled.
+    """
+    def fit(self, signal):
+        super().fit(signal)
+        n = len(signal)
+        if n * (n + 1) * 8 <= 16 * 1024 * 1024:
+            costs = np.full((n, n + 1), np.nan)
+            original = super().error
+
+            def error(start, end):
+                value = costs[start, end]
+                if np.isnan(value):
+                    value = costs[start, end] = original(start, end)
+                return value
+            self.error = error
+        else:
+            self.error = lru_cache(maxsize=65536)(super().error)
+        return self
+
+
+class _Pelt(rpt.Pelt):
+    """Upstream PELT recurrence with shared prefixes instead of copied dicts.
+
+    Upstream repeatedly copies a complete partition and sums every segment for
+    every candidate. A prefix total is the same left-to-right floating-point
+    sum, so appending one cost preserves its exact score and first-minimum tie
+    rule. Keep the candidate/pruning order and reconstruct the winning path once.
+    """
+    def _seg(self, pen):
+        totals = {0: 0}
+        previous = {}
+        admissible = []
+        indices = [k for k in range(0, self.n_samples, self.jump) if k >= self.min_size]
+        indices.append(self.n_samples)
+        for end in indices:
+            admissible.append(floor((end - self.min_size) / self.jump) * self.jump)
+            candidates = []
+            for start in admissible:
+                if start not in totals:
+                    continue
+                cost = self.cost.error(start, end) + pen
+                candidates.append((totals[start] + cost, start, cost))
+            score, start, cost = min(candidates, key=lambda candidate: candidate[0])
+            totals[end] = score
+            previous[end] = (start, cost)
+            # Match upstream's zip order even when a predecessor is skipped.
+            admissible = [start for start, candidate in zip(admissible, candidates)
+                          if candidate[0] <= score + pen]
+        partition = {}
+        end = self.n_samples
+        while end:
+            start, cost = previous[end]
+            partition[(start, end)] = cost
+            end = start
+        return partition
+
+
+@lru_cache(maxsize=4)
+def _fitted_pelt(values_key, model, min_size, jump):
+    y = np.asarray(values_key, dtype=float).reshape(-1, 1)
+    cost = _CachedL2() if model == "l2" else None
+    estimator = _Pelt if model == "l2" else rpt.Pelt
+    return estimator(model=model, custom_cost=cost, min_size=min_size, jump=jump).fit(y)
 
 
 def _standardize_array(x: np.ndarray) -> np.ndarray:
@@ -450,8 +520,8 @@ def _build_selection_summary_series(
 
             s = (
                 zt[["window_start", mcol]]
-                .drop_duplicates(subset=["window_start"])
-                .set_index("window_start")[mcol]
+             .drop_duplicates(subset=["window_start"])
+             .set_index("window_start")[mcol]
             )
             s = pd.to_numeric(s, errors="coerce")
 
@@ -497,8 +567,8 @@ def _build_selection_component_frame(
 
             s = (
                 zt[["window_start", mcol]]
-                .drop_duplicates(subset=["window_start"])
-                .set_index("window_start")[mcol]
+             .drop_duplicates(subset=["window_start"])
+             .set_index("window_start")[mcol]
             )
             s = pd.to_numeric(s, errors="coerce")
 
