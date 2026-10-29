@@ -9,6 +9,7 @@ export default function ForecastShap({ data }: { data: ShapResult }) {
   if (!rows.length) return <p>No nonzero SHAP effects on the explained training sample.</p>;
   return <div data-testid="forecast-shap">
     <h3>SHAP feature explanations</h3>
+    {data.method && <p className="help">{data.method}.</p>}
     <p className="help">{data.scope}. Effects explain {data.scale}; positive values increase class-1 output. Background: {data.n_background} training rows; explained: {data.n_explained} training rows. These are model explanations, not causes or held-out performance. Interventional SHAP breaks feature dependence; correlated metrics may share or redistribute credit.</p>
     <Plot data={rows.map((r, rank) => {
       const min = Math.min(...r.feature_values), max = Math.max(...r.feature_values);

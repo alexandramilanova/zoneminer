@@ -1,5 +1,15 @@
 # Browser regression tests
 
+The request-admission queue also has browser-independent unit checks. From
+`frontend/`, run `node --test tests/request-queue.test.mjs` after `npm ci`.
+They check bounded FIFO admission, cancellation before a request starts, and
+capacity recovery after failures. These checks do not replace the browser suites
+or a hosted deployment smoke test.
+
+`workspace-selection.spec.ts` delays previous-analysis metadata until an upload
+starts, then checks that it cannot restore the old model, zones or time window
+over the new upload.
+
 `model-views-downloads.spec.ts` checks example placement, unavailable-helper
 explanations, direct BPMN rendering, and actual CSV/PNG/SVG downloads. CSV
 checks cover units, precision, quoting, and spreadsheet-formula protection.

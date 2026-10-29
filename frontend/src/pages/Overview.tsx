@@ -1,7 +1,7 @@
 import { formatDuration } from "../lib/metricPresentation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  api,
+  api, req,
   type BottleneckState,
   type HandoverPair,
   type MetricCatalog,
@@ -74,8 +74,7 @@ export default function Overview() {
     if (!analysisId || !hintZone) return;
     let cancelled = false;
     setHints(null);
-    fetch(`/api/analyses/${analysisId}/alerts/hints?zone=${encodeURIComponent(hintZone)}`)
-      .then((r) => r.json())
+    req<{ hints: NonNullable<typeof hints> }>(`/api/analyses/${analysisId}/alerts/hints?zone=${encodeURIComponent(hintZone)}`)
       .then((d) => !cancelled && setHints(d.hints ?? []))
       .catch(() => !cancelled && setHints([]));
     return () => {
@@ -88,8 +87,7 @@ export default function Overview() {
     const params = new URLSearchParams();
     if (openAgeH.trim()) params.set("open_age_threshold", String(Number(openAgeH) * 3600));
     if (backlog.trim()) params.set("backlog_threshold", backlog);
-    fetch(`/api/analyses/${analysisId}/alerts?${params}`)
-      .then((r) => r.json())
+    req<NonNullable<typeof alerts>>(`/api/analyses/${analysisId}/alerts?${params}`)
       .then(setAlerts)
       .catch((e) => setError(String(e)));
   }, [analysisId, openAgeH, backlog]);

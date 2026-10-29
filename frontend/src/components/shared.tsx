@@ -184,7 +184,10 @@ export function fmtCell(v: unknown): ReactNode {
 }
 
 export function NeedsAnalysis({ children }: { children: ReactNode }) {
-  const { analysis } = useAppState();
+  const { analysis, analysisId, analysisError } = useAppState();
+  if (analysisId && !analysis) {
+    return <p role={analysisError ? "alert" : "status"}>{analysisError ? `Unable to load analysis: ${analysisError}. Reload to try again.` : "Loading analysis…"}</p>;
+  }
   if (!analysis?.has_artifacts) {
     return (
       <div className="panel">

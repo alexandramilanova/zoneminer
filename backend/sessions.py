@@ -95,7 +95,7 @@ class Sessions:
                 (root / "session.json").write_text(json.dumps({"expires": lease.expires}))
                 self.leases[token] = lease
             if lease.active >= config.limit("SESSION_REQUESTS", 8):
-                raise HTTPException(429, "Too many requests in this session. Please try again shortly.")
+                raise HTTPException(429, "Too many requests in this session. Please try again shortly.", headers={"Retry-After": "1"})
             lease.active += 1
             return token, lease, fresh
 
@@ -104,6 +104,7 @@ class AnonymousMiddleware:
     def __init__(self, app, sessions):
         self.app = app
         self.sessions = sessions
+        self.public_origin = config.public_origin()
         self.slots = threading.BoundedSemaphore(config.limit("MAX_REQUESTS", 16))
 
     async def __call__(self, scope, receive, send):
@@ -115,11 +116,12 @@ class AnonymousMiddleware:
             # Cookies authenticate the workspace. Reject cross-origin mutations,
             # including simple multipart POSTs that bypass CORS preflight.
             origin = request.headers.get("origin")
-            allowed = {str(request.base_url).rstrip("/"), "http://localhost:5173", "http://127.0.0.1:5173"}
+            allowed = ({self.public_origin} if self.public_origin else
+                       {str(request.base_url).rstrip("/"), "http://localhost:5173", "http://127.0.0.1:5173"})
             if origin and origin not in allowed:
                 return await JSONResponse({"detail": "Cross-origin requests are not allowed."}, 403)(scope, receive, send)
         if not self.slots.acquire(blocking=False):
-            return await JSONResponse({"detail": "Server is busy. Please try again shortly."}, 429)(scope, receive, send)
+            return await JSONResponse({"detail": "Server is busy. Please try again shortly."}, 429, headers={"Retry-After": "1"})(scope, receive, send)
         lease = None
         context = None
         try:
@@ -194,7 +196,8 @@ class AnonymousMiddleware:
                     await send(message)
                 await self.app(scope, replay, respond)
         except HTTPException as error:
-            await JSONResponse({"detail": error.detail}, error.status_code, headers={"Cache-Control": "no-store"})(scope, receive, send)
+            await JSONResponse({"detail": error.detail}, error.status_code,
+                               headers={"Cache-Control": "no-store", **(error.headers or {})})(scope, receive, send)
         finally:
             if context is not None:
                 config.WORKSPACE.reset(context)

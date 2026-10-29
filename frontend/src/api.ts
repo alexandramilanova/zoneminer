@@ -5,6 +5,8 @@
  * calls are same-origin either way.
  */
 
+import { requestQueue } from "./lib/requestQueue";
+
 export interface ForecastMetric {
   name: string; label: string; unit_label: string; description: string;
   forecast_supported: boolean; forecast_reason: string | null;
@@ -42,7 +44,7 @@ export interface ForecastScore {
   precision: number; recall: number; confusion: { tp: number; fn: number; fp: number; tn: number };
 }
 export interface ForecastShap {
-  status: string; reason?: string; scope?: string; scale?: string; n_background?: number; n_explained?: number;
+  status: string; reason?: string; scope?: string; scale?: string; method?: string; n_background?: number; n_explained?: number;
   rows: { feature: string; mean_abs_shap: number; values: number[]; feature_values: number[] }[];
 }
 export interface ForecastResult {
@@ -317,7 +319,12 @@ export function sessionInfo(): Promise<SessionInfo> {
   return session;
 }
 
-async function req<T>(url: string, init?: RequestInit): Promise<T> {
+const admitRequest = requestQueue();
+export function req<T>(url: string, init?: RequestInit): Promise<T> {
+  return admitRequest(() => requestJson<T>(url, init), init?.signal ?? undefined);
+}
+
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   await sessionInfo();
   // Retry admission bursts only for reads (including the read-only trend POST).
   // Never repeat uploads, analysis creation or other state-changing requests.
@@ -369,7 +376,7 @@ interface IntervalPage<T> {
 }
 
 /** Never publish a partial replay/flow table as a complete analysis. */
-async function allIntervalPages<T>(url: string, signal?: AbortSignal) {
+async function allIntervalPages<T>(url: string, signal?: AbortSignal, onProgress?: (loaded: number, total: number) => void) {
   const rows: T[] = [];
   let offset = 0;
   let total: number | undefined;
@@ -386,6 +393,7 @@ async function allIntervalPages<T>(url: string, signal?: AbortSignal) {
     }
     total = page.total_count;
     for (const row of page.rows) rows.push(row);
+    onProgress?.(rows.length, total);
     if (page.next_offset === null) break;
     offset = page.next_offset;
   } while (true);
@@ -478,8 +486,8 @@ export const api = {
       zone_diagnostics: Record<string, unknown>[];
       place_diagnostics: Record<string, unknown>[];
     }>(`/api/analyses/${id}/diagnostics`),
-  tokenIntervals: (id: string, signal?: AbortSignal) =>
-    allIntervalPages<Record<string, unknown>>(`/api/analyses/${id}/token-intervals`, signal),
+  tokenIntervals: (id: string, signal?: AbortSignal, onProgress?: (loaded: number, total: number) => void) =>
+    allIntervalPages<Record<string, unknown>>(`/api/analyses/${id}/token-intervals`, signal, onProgress),
   zoneStays: (id: string, signal?: AbortSignal) =>
     allIntervalPages<ZoneStay>(`/api/analyses/${id}/zone-stays`, signal),
   queueing: (id: string) =>

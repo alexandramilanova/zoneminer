@@ -216,6 +216,25 @@ class TemporalScienceTests(unittest.TestCase):
         self.assertEqual(result['models'][1]['shap']['scale'], 'class-1 probability')
         self.assertEqual(result['models'][2]['shap']['scale'], 'class-1 log-odds')
 
+    def test_histogram_shap_fallback_reconstructs_actual_model_margin(self):
+        X, y, _, _ = self.series(horizon=1)
+        X = X * 1e-12  # Distinct values that SHAP's default isclose mask merges.
+        X, y = X.loc[y.notna()], y.dropna().astype(int)
+        fitted = pipeline('hist_gradient_boosting').fit(X, y)
+        with patch('shap.TreeExplainer', side_effect=ValueError('Additivity check failed')):
+            result = explain_shap(fitted, X)
+        self.assertEqual(result['status'], 'available', result)
+        self.assertIn('Permutation SHAP', result['method'])
+        self.assertEqual(result, self._fallback_again(fitted, X))
+        sample = fitted.named_steps['imputer'].transform(X)[np.linspace(0, len(X)-1, 64, dtype=int)]
+        reconstructed = np.asarray(result['base_values']) + np.sum([r['values'] for r in result['rows']], axis=0)
+        np.testing.assert_allclose(reconstructed, fitted.named_steps['model'].decision_function(sample), atol=1e-6)
+
+    @staticmethod
+    def _fallback_again(fitted, X):
+        with patch('shap.TreeExplainer', side_effect=ValueError('Additivity check failed')):
+            return explain_shap(fitted, X)
+
     def test_missing_targets_not_negative_and_missing_history_removed(self):
         windows = pd.date_range('2024-01-01', periods=8, freq='D', tz='UTC')
         f = pd.DataFrame(dict(zone='Z', window_end=windows, token_avg_age_open=[np.nan, 2, 3, 4, 5, 6, 7, 8]))

@@ -39,15 +39,9 @@ declared exploratory settings, not a newly untouched evaluation or a claim
 that weighting fixes reconstruction leakage. No setting is selected
 automatically using this result.
 
-Verification: 210 Python tests, the full 59-test production Chrome suite,
-frontend production build and descriptive parity gate passed. After the final
-diagnostic/weighted-tree label edits, nine prediction Python tests and nine
-prediction/replay browser tests passed against the final source, with a fresh
-isolated browser-service cache. Tests check training-only weights, unchanged
-evaluation origins/labels, future isolation of earlier folds, cache identity,
-weighted-share labels and unchanged descriptive features. A preview cache
-created while source files were being edited was replaced for the final run;
-changing files under an already running interpreter is not a release build.
+Regression tests cover training-only weights, unchanged evaluation origins and
+labels, future isolation of earlier folds, cache identity, weighted-share labels
+and unchanged descriptive features. See the [test instructions](../README.md#tests).
 
 ## Prediction method
 
@@ -122,6 +116,14 @@ are uncalibrated. SHAP uses training examples, reports its output scale, and
 explains model behavior rather than causes. One-class or poor performance is a
 legitimate outcome; samples, timestamps and thresholds are never altered to
 improve it.
+
+Ensemble explanations normally use Tree SHAP. If histogram gradient boosting's
+tree explanation fails, the application explains the fitted decision function
+using deterministic permutation SHAP with an exact-equality background mask.
+This fallback is explicitly labeled as approximate feature allocation. In both
+paths, all contributions plus the baseline must reconstruct the model output
+within numerical tolerance; a failed check produces an unavailable explanation.
+The plot displays the highest-ranked features rather than every contribution.
 
 Token flow quantities use place productions and consumptions, including
 internal movement. They must not be interpreted as zone-boundary crossing

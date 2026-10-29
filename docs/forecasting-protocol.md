@@ -205,7 +205,10 @@ DT nodes are read from the final fitted tree, including the imputer's output
 feature names. SHAP explains the final RF/HGB using deterministic samples and
 background from their eligible training data only (up to 64 rows each).
 Interventional Tree SHAP explains RF class-1 probability or HGB class-1 raw
-log-odds; output scales are labeled. Additivity is checked. Missing/unsupported
+log-odds; output scales are labeled. If HGB tree conversion fails, deterministic
+permutation SHAP explains the fitted decision function with an exact-equality
+background mask. Its approximate feature allocation is labeled. Contributions
+and baseline are checked against actual model outputs. Missing/unsupported
 SHAP is reported as unavailable, never replaced by zero importance. Correlated
 features can redistribute credit; explanations are not causes. The beeswarm
 colors rescale values *within each feature* and do not modify model inputs.

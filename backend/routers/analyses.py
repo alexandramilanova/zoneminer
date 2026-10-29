@@ -251,15 +251,15 @@ def get_token_intervals(
 ):
     """Token-place intervals mapped to zones — the data behind token replay."""
     meta = _get_analysis_or_404(analysis_id)
-    df = store.load_frame(analysis_id, "token_place")
-    if df is None:
+    result = store.load_frame_page(analysis_id, "token_place", offset, limit)
+    if result is None:
         raise HTTPException(409, "Analysis has no computed artifacts yet")
+    page, total = result
     place_to_zone = {
         p: zone for zone, places in meta["zone_places"].items() for p in places
     }
-    page = df.iloc[offset:offset + limit].copy()
     page["zone"] = page["place"].map(place_to_zone)
-    return _interval_page(page, len(df), offset)
+    return _interval_page(page, total, offset)
 
 
 def _interval_page(page: pd.DataFrame, total: int, offset: int) -> dict:

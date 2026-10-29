@@ -7,6 +7,7 @@ pre-bakes the demo dataset's computed artifacts there.
 
 import os
 from contextvars import ContextVar
+from urllib.parse import urlsplit
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -40,6 +41,24 @@ WORKSPACE: ContextVar[str | None] = ContextVar("workspace", default=None)
 
 def data_dir() -> str:
     return WORKSPACE.get() or os.environ.get("ZONE_ANALYTICS_WORKSPACE") or DATA_DIR
+
+
+def public_origin() -> str | None:
+    """Explicit browser origin when a reverse proxy changes the internal URL."""
+    value = os.environ.get("ZONE_ANALYTICS_PUBLIC_ORIGIN", "").strip()
+    if not value:
+        return None
+    try:
+        parsed = urlsplit(value)
+        parsed.port  # Reject malformed ports before accepting the setting.
+        if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None
+                or parsed.path not in {"", "/"} or parsed.query or parsed.fragment
+                or "*" in value or "," in value or any(c.isspace() for c in value)):
+            raise ValueError
+    except ValueError:
+        raise ValueError("ZONE_ANALYTICS_PUBLIC_ORIGIN must be one exact http(s) origin without a path, credentials or wildcards") from None
+    return f"{parsed.scheme}://{parsed.netloc.lower()}"
 
 
 def limit(name: str, default: int) -> int:

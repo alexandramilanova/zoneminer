@@ -18,7 +18,27 @@ An independent tool for reproducible zone-level process analysis, combining
 interactive model exploration, time-windowed measurements and interpretable
 retrospective prediction.
 
-**Availability:** local Docker or source installation · **License:** MIT application code; dependency licenses apply
+**Availability:** hosted Hugging Face deployment (currently private), local Docker or source installation · **License:** MIT application code; dependency licenses apply
+
+## Hosted application and local performance
+
+The deployed application is available at
+[ZoneMiner on Hugging Face](https://huggingface.co/spaces/alexandramilanova/zoneminer).
+Use the [direct application URL](https://alexandramilanova-zoneminer.hf.space)
+for uploads and analysis. The Space is currently private; access requires
+permission from its owner. This is not yet an anonymous public release.
+
+**Local installation is recommended for full performance**, especially for large
+event logs, complex process models, repeated experiments or intensive prediction.
+The hosted version provides the same analysis features, but shares finite CPU,
+memory and temporary storage. Computations are queued, and large workloads can
+take longer or exceed the available resources. There is no default fixed upload
+size or event-count cap; this does not guarantee that every input will fit or
+finish. Local performance also depends on the resources of your own machine.
+
+Hosted uploads and results belong to temporary visitor workspaces that expire
+after 24 hours and can be lost on a restart or rebuild. Download results you want
+to retain. See [deployment and resource details](docs/hugging-face.md).
 
 ## Features
 
@@ -108,6 +128,11 @@ tools/               demo-data generation, baseline recording, parity gate,
 
 ## Quickstart
 
+The following instructions run the application locally, using your machine's
+resources and a persistent workspace rather than the hosted service's shared
+compute capacity and temporary sessions. Repository access is currently required
+to clone the source.
+
 Requires Python ≥ 3.12 and Node 22 for a source installation. Docker builds
 both runtimes for you. Graphviz (`dot`) is needed for helper diagrams and the
 legacy interface; install it through your OS package manager.
@@ -165,6 +190,8 @@ python tools/parity_gate.py            # oracle vs API (pm4py exact, r4pm within
 
 CI runs both plus the frontend build on every push (`.github/workflows/tests.yml`).
 Browser tests run separately; see [frontend/tests/README.md](frontend/tests/README.md).
+Request-admission unit checks run from `frontend/` with
+`node --test tests/request-queue.test.mjs`.
 
 Local mode keeps a persistent trusted workspace. The optional anonymous runtime
 isolates visitors in temporary workspaces with expiry, deletion, and resource

@@ -22,7 +22,7 @@ import { BpmnView, ProcessTreeView } from "../components/ModelViews";
 type EditorZone = ZoneDraft & { draftKey: number };
 
 export default function Workspace() {
-  const { analysis, setAnalysisId, refresh } = useAppState();
+  const { analysis, setAnalysisId } = useAppState();
   const navigate = useNavigate();
 
   const [datasetId, setDatasetId] = useState<string | null>(analysis?.dataset_id ?? null);
@@ -43,6 +43,12 @@ export default function Workspace() {
   const draftVersion = useRef(0);
   const nextDraftKey = useRef(0);
   const validationRequest = useRef(0);
+  const datasetRequest = useRef(0);
+  const manualSelection = useRef(false);
+  const beginSelection = () => {
+    manualSelection.current = true;
+    datasetRequest.current += 1;
+  };
   const setZoneDrafts = useCallback((update: ZoneDraft[] | ((previous: EditorZone[]) => ZoneDraft[])) => {
     draftVersion.current += 1;
     setValidation(null);
@@ -68,10 +74,11 @@ export default function Workspace() {
   }, []);
 
   const loadExample = async (ex: ExampleScenario) => {
+    beginSelection();
     setBusy(`Loading ${ex.title}…`);
     setError(null);
     try {
-      await loadDataset(ex.dataset_id, ex.title);
+      if (!await loadDataset(ex.dataset_id, ex.title)) return;
       setZoneDrafts(Object.entries(ex.zones).map(([name, places]) => ({ name, places })));
       setTimeframe(ex.timeframe);
     } catch (e) {
@@ -82,12 +89,14 @@ export default function Workspace() {
   };
 
   const loadDataset = useCallback(async (id: string, name: string) => {
+    const request = ++datasetRequest.current;
     draftVersion.current += 1;
     setValidation(null);
     setBusy("Loading model…");
     setError(null);
     try {
       const g = await api.modelGraph(id);
+      if (request !== datasetRequest.current) return false;
       setActiveZone(0);
       setDatasetId(id);
       setDatasetName(name);
@@ -95,16 +104,18 @@ export default function Workspace() {
       setShowTree(false);
       setShowBpmn(false);
       setValidation(null);
+      return true;
     } catch (e) {
-      setError(String(e));
+      if (request === datasetRequest.current) setError(String(e));
+      return false;
     } finally {
-      setBusy(null);
+      if (request === datasetRequest.current) setBusy(null);
     }
   }, []);
 
   // restore state for the current analysis
   useEffect(() => {
-    if (analysis && !graph) {
+    if (analysis && !graph && !manualSelection.current) {
       loadDataset(analysis.dataset_id, "");
       setZoneDrafts(
         Object.entries(analysis.zone_places).map(([name, places]) => ({ name, places })),
@@ -117,11 +128,12 @@ export default function Workspace() {
   useEffect(() => () => unsubscribe.current?.(), []);
 
   const loadDemo = async () => {
+    beginSelection();
     setBusy("Loading demo…");
     setError(null);
     try {
       const demo = await api.demo();
-      await loadDataset(demo.dataset_id, "Demo: Online Order Fulfillment");
+      if (!await loadDataset(demo.dataset_id, "Demo: Online Order Fulfillment")) return;
       setZoneDrafts(
         Object.entries(demo.zones).map(([name, places]) => ({ name, places })),
       );
@@ -142,11 +154,12 @@ export default function Workspace() {
       setError("Choose an event log file (.csv or .xes).");
       return;
     }
+    beginSelection();
     setBusy("Uploading & parsing…");
     setError(null);
     try {
       const ds: Dataset = await api.uploadDataset(logFile, pnmlFile);
-      await loadDataset(ds.id, ds.name);
+      if (!await loadDataset(ds.id, ds.name)) return;
       setZoneDrafts([{ name: "Zone 1", places: [] }]);
     } catch (e) {
       setError(String(e));
@@ -216,7 +229,6 @@ export default function Workspace() {
   const finishRun = (analysisId: string) => {
     setRunning(false);
     setAnalysisId(analysisId);
-    refresh();
     navigate("/overview");
   };
 

@@ -327,6 +327,22 @@ def load_frame(analysis_id: str, name: str) -> Optional[pd.DataFrame]:
         return con.execute("SELECT * FROM read_parquet(?)", [path]).to_arrow_table().to_pandas()
 
 
+def load_frame_page(analysis_id: str, name: str, offset: int, limit: int) -> Optional[tuple[pd.DataFrame, int]]:
+    """Read a bounded page in persisted row order without materializing the full frame."""
+    path = os.path.join(analysis_dir(analysis_id), f"{_safe_id(name)}.parquet")
+    if not os.path.exists(path):
+        return None
+    with _access():
+        con = _connect()
+        total = con.execute("SELECT count(*) FROM read_parquet(?)", [path]).fetchone()[0]
+        page = con.execute(
+            "SELECT * EXCLUDE (file_row_number) FROM read_parquet(?, file_row_number=true) "
+            "WHERE file_row_number >= ? AND file_row_number < ? ORDER BY file_row_number",
+            [path, offset, offset + limit],
+        ).to_arrow_table().to_pandas()
+        return page, total
+
+
 def has_artifacts(analysis_id: str) -> bool:
     d = analysis_dir(analysis_id)
     return os.path.exists(os.path.join(d, "zone_features.parquet"))

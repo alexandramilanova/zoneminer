@@ -15,14 +15,15 @@ import {
   type ReactNode,
 } from "react";
 import { api, type AnalysisMeta } from "./api";
+import { useResult } from "./lib/useResult";
 
 const STORAGE_KEY = "zone-analytics-current";
 
 interface AppState {
   analysisId: string | null;
   analysis: AnalysisMeta | null;
+  analysisError: string | null;
   setAnalysisId: (id: string | null) => void;
-  refresh: () => void;
   zoneColor: (zone: string) => string;
   zones: string[];
 }
@@ -41,7 +42,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
     return localStorage.getItem(STORAGE_KEY);
   });
-  const [analysis, setAnalysis] = useState<AnalysisMeta | null>(null);
 
   const setAnalysisId = useCallback((id: string | null) => {
     setAnalysisIdRaw(id);
@@ -49,26 +49,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const refresh = useCallback(() => {
-    if (!analysisId) {
-      setAnalysis(null);
-      return;
-    }
-    api
-      .analysis(analysisId)
-      .then(setAnalysis)
-      .catch((e: Error) => {
-        // Only a definitive 404 means the reference is stale; transient
-        // failures (backend restarting, network blip) must not wipe the
-        // user's selection.
-        if (String(e.message).startsWith("404")) {
-          setAnalysis(null);
-          setAnalysisId(null);
-        }
-      });
-  }, [analysisId, setAnalysisId]);
-
-  useEffect(refresh, [refresh]);
+  const result = useResult<AnalysisMeta>(analysisId, () => api.analysis(analysisId!));
+  const analysis = result.status === "success" ? result.data : null;
+  const error = result.status === "error" ? result.error : null;
+  useEffect(() => {
+    if (error?.includes("404:")) setAnalysisId(null);
+  }, [error, setAnalysisId]);
 
   const zones = useMemo(
     () => (analysis ? Object.keys(analysis.zone_places).sort() : []),
@@ -85,8 +71,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ analysisId, analysis, setAnalysisId, refresh, zoneColor, zones }),
-    [analysisId, analysis, setAnalysisId, refresh, zoneColor, zones],
+    () => ({ analysisId, analysis, analysisError: error, setAnalysisId, zoneColor, zones }),
+    [analysisId, analysis, error, setAnalysisId, zoneColor, zones],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -119,6 +119,7 @@ export default function Replay() {
   const [speed, setSpeed] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [journeyError, setJourneyError] = useState<string | null>(null);
   // deep-linkable: ?place=<name> preselects the case inspector (demo/video)
   const [selectedPlace, setSelectedPlace] = useState<string | null>(
@@ -171,8 +172,11 @@ export default function Replay() {
     setPlaying(false);
     setError(null);
     setLoading(true);
+    setProgress(null);
     if (!analysisId || !analysis?.has_artifacts) return;
-    Promise.all([api.modelGraph(analysis.dataset_id), api.tokenIntervals(analysisId, controller.signal)])
+    Promise.all([api.modelGraph(analysis.dataset_id), api.tokenIntervals(analysisId, controller.signal, (loaded, total) => {
+      if (!controller.signal.aborted) setProgress({ loaded, total });
+    })])
       .then(([modelGraph, r]) => {
         if (controller.signal.aborted) return;
         setGraph(modelGraph);
@@ -440,7 +444,7 @@ export default function Replay() {
           </div>
         </>
       )}
-      {loading && !error && <p role="status" className="help">Loading complete token history…</p>}
+      {loading && !error && <p role="status" className="help">Loading complete token history…{progress && ` ${progress.loaded.toLocaleString()} / ${progress.total.toLocaleString()} intervals (${progress.total ? Math.round(100 * progress.loaded / progress.total) : 100}%).`}</p>}
       {!loading && intervals.length === 0 && !error && <p className="help">No token intervals in this analysis.</p>}
     </NeedsAnalysis>
   );

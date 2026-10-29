@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.model_selection import TimeSeriesSplit
+from sklearn.ensemble import HistGradientBoostingClassifier
 
 from analytics.metrics.schema import CANONICAL_METRICS
 from analytics.prediction import MODEL_DISPLAY_NAMES, _build_model_pipeline
@@ -158,18 +159,39 @@ def explain_shap(fitted, X):
         # Deterministic spread over training, no held-out examples in background.
         background = values[np.linspace(0, len(values) - 1, min(64, len(values)), dtype=int)]
         sample = values[np.linspace(0, len(values) - 1, min(64, len(values)), dtype=int)]
-        explainer = shap.TreeExplainer(fitted.named_steps['model'], data=background,
-                                     feature_perturbation='interventional', model_output='raw')
-        explanation = explainer(sample, check_additivity=True)
+        model = fitted.named_steps['model']
+        method = 'Tree SHAP'
+        try:
+            explainer = shap.TreeExplainer(model, data=background,
+                                         feature_perturbation='interventional', model_output='raw')
+            explanation = explainer(sample, check_additivity=True)
+        except Exception:
+            if not isinstance(model, HistGradientBoostingClassifier):
+                raise
+            # Explain the estimator itself when its SHAP tree conversion fails.
+            # One deterministic permutation estimates allocation; local accuracy
+            # is checked independently against the actual decision function.
+            method = 'Permutation SHAP (approximate feature allocation)'
+            class ExactBackground(shap.maskers.Independent):
+                def invariants(self, x):
+                    # np.isclose can merge small distinct occupancies across a
+                    # fitted split. Only identical imputed inputs are invariant.
+                    return self.data == x
+            explanation = shap.PermutationExplainer(model.decision_function, ExactBackground(background), seed=42)(
+                sample, max_evals=2 * sample.shape[1] + 1)
         effects = np.asarray(explanation.values)
         base = np.asarray(explanation.base_values)
         if effects.ndim == 3:
             effects, base = effects[:, :, 1], base[:, 1]
+        expected = (model.decision_function(sample) if isinstance(model, HistGradientBoostingClassifier)
+                    else model.predict_proba(sample)[:, 1])
+        if not np.allclose(base.reshape(-1) + effects.sum(axis=1), expected, rtol=1e-5, atol=1e-6):
+            raise ValueError('SHAP effects do not reconstruct the fitted model output.')
         names = list(X.columns)
         order = np.argsort(-np.abs(effects).mean(axis=0))[:12]
         rows = [dict(feature=names[j], mean_abs_shap=float(np.abs(effects[:, j]).mean()),
                      values=effects[:, j].tolist(), feature_values=sample[:, j].tolist()) for j in order]
-        return dict(status='available', scope='final model; training examples only',
+        return dict(status='available', method=method, scope='final model; training examples only',
                     scale='class-1 probability' if hasattr(fitted.named_steps['model'], 'feature_importances_') else 'class-1 log-odds',
                     n_background=len(background), n_explained=len(sample), rows=rows,
                     base_values=base.reshape(-1).tolist())

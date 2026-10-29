@@ -1,5 +1,6 @@
 """Privacy boundaries and lifecycle using real independent browser cookies."""
 import os
+from contextlib import closing
 from pathlib import Path
 import tempfile
 import time
@@ -72,6 +73,20 @@ class AnonymousSessionsTests(unittest.TestCase):
         self.assertFalse(root.exists())
         self.assertNotIn(token, self.app.state.sessions.leases)
 
+    def test_request_admission_keeps_limits_and_provides_retry_guidance(self):
+        self.a.get('/api/session')
+        token = self.a.cookies.get('zoneminer_session')
+        lease = self.app.state.sessions.leases[token]
+        lease.active = 8
+        try:
+            response = self.a.get('/api/session')
+            self.assertEqual(response.status_code, 429)
+            self.assertEqual(response.headers['retry-after'], '1')
+            self.assertEqual(lease.active, 8)
+        finally:
+            lease.active = 0
+        self.assertEqual(self.a.get('/api/session').status_code, 200)
+
     def test_cross_origin_and_actual_body_limits(self):
         self.assertEqual(self.a.post("/api/datasets", headers={"Origin": "https://other.example"}, files={"log": ("a.csv", CSV)}).status_code, 403)
         with patch.dict(os.environ, {"ZONE_ANALYTICS_REQUEST_MB": "1"}):
@@ -79,6 +94,41 @@ class AnonymousSessionsTests(unittest.TestCase):
             response = self.a.post("/api/datasets", content=iter([b"x" * (700 * 1024)] * 2),
                                    headers={"Content-Type": "multipart/form-data; boundary=test"})
             self.assertEqual(response.status_code, 413, response.text)
+
+    def test_explicit_public_origin_supports_proxy_and_rejects_other_origins(self):
+        origin = "https://alexandramilanova-zoneminer.hf.space"
+        with patch.dict(os.environ, {"ZONE_ANALYTICS_PUBLIC_ORIGIN": origin}):
+            with closing(TestClient(self.app, base_url="http://internal-proxy:7860")) as client:
+                demo = client.get("/api/demo").json()
+                path = f"/api/datasets/{demo['dataset_id']}/zones/validate"
+                body = {"zones": demo["zones"]}
+                response = client.post(path, json=body, headers={"Origin": origin})
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertTrue(response.json()["valid"])
+                for other in ("https://other.example", "https://another-space.hf.space",
+                              "http://internal-proxy:7860", "http://localhost:5173", "null"):
+                    response = client.post(path, json=body, headers={
+                        "Origin": other, "X-Forwarded-Host": "alexandramilanova-zoneminer.hf.space",
+                        "X-Forwarded-Proto": "https"})
+                    self.assertEqual(response.status_code, 403, (other, response.text))
+
+    def test_public_origin_configuration_is_exact(self):
+        with patch.dict(os.environ, {"ZONE_ANALYTICS_PUBLIC_ORIGIN": "https://Example.org/"}):
+            self.assertEqual(config.public_origin(), "https://example.org")
+        for value in ("*", "null", "https://*.hf.space", "https://example.org/path",
+                      "https://example.org?query=1", "https://example.org#fragment",
+                      "https://user:password@example.org", "https://example.org:bad",
+                      "https://one.example,https://two.example"):
+            with patch.dict(os.environ, {"ZONE_ANALYTICS_PUBLIC_ORIGIN": value}):
+                with self.assertRaises(ValueError, msg=value):
+                    config.public_origin()
+
+    def test_default_same_origin_zone_validation_remains_allowed(self):
+        demo = self.a.get("/api/demo").json()
+        response = self.a.post(f"/api/datasets/{demo['dataset_id']}/zones/validate",
+                               json={"zones": demo["zones"]}, headers={"Origin": "http://testserver"})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["valid"])
 
     def test_explicit_delete_and_capacity(self):
         self.a.get("/api/session")
