@@ -1,0 +1,27 @@
+{
+  "name": "BPI 2020: Prepaid Travel Costs",
+  "log": "prepaid.xes",
+  "sha256": "fa88510a5b55ed329ebb014370dd6631db7f93b1b01cc378cc2f95296ea5ea9c",
+  "source_doi": "10.4121/uuid:5d2fe5e1-f91f-4a3b-ad9b-9e4126870165",
+  "cases": 2099,
+  "events": 18246,
+  "activities": 29,
+  "places": 58,
+  "transitions": 89,
+  "zones": 14,
+  "backend": "r4pm",
+  "timeframe": "D",
+  "sampling": false,
+  "application_commit": "23da351195144e1a30c3deb30d455ef09926c7a1",
+  "valid_pairs_scanned": 182,
+  "selected_pairs": 26,
+  "threshold": "abs(r) > 0.65",
+  "source_metric": "case_enter",
+  "target_metric": "case_exit",
+  "lags_days": [
+    1,
+    7
+  ],
+  "minimum_paired_windows": 8,
+  "max_abs_r": 0.7702343755013559
+}

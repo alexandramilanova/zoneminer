@@ -1,0 +1,27 @@
+{
+  "name": "BPI 2020: International Declarations",
+  "log": "international.xes",
+  "sha256": "381e793931dbe8c393e7504ec98d66172eb9ba89802d97652c054cd61036598e",
+  "source_doi": "10.4121/uuid:2bbf8f6a-fc50-48eb-aa9e-c4ea5ef7e8c5",
+  "cases": 6449,
+  "events": 72151,
+  "activities": 34,
+  "places": 93,
+  "transitions": 131,
+  "zones": 24,
+  "backend": "r4pm",
+  "timeframe": "D",
+  "sampling": false,
+  "application_commit": "23da351195144e1a30c3deb30d455ef09926c7a1",
+  "valid_pairs_scanned": 529,
+  "selected_pairs": 226,
+  "threshold": "abs(r) > 0.65",
+  "source_metric": "case_enter",
+  "target_metric": "case_exit",
+  "lags_days": [
+    1,
+    7
+  ],
+  "minimum_paired_windows": 8,
+  "max_abs_r": 0.8804597804527716
+}
