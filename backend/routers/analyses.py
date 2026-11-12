@@ -300,11 +300,21 @@ def get_zone_stays(
     analysis_id: str, zones: Optional[str] = None,
     limit: int = Query(default=200000, ge=1, le=200000),
     offset: int = Query(default=0, ge=0),
+    case_id: Optional[str] = None,
 ):
     """Case-zone stays (merged maximal intervals per case and zone) — the data
     behind the flow-pattern views (CFD, fingerprint scatter)."""
     meta = _get_analysis_or_404(analysis_id)
+    # Filter persisted Parquet before materialization, especially for one case's
+    # journey in the replay. Keep the legacy reconstruction fallback below.
+    page = store.load_frame_page(analysis_id, "case_zone_stays", offset, limit,
+                                 case_id=case_id, zones=zones.split(",") if zones else None)
+    if page is not None:
+        frame, total = page
+        return _interval_page(frame, total, offset)
     df = _zone_stays_frame(analysis_id, meta)
+    if case_id is not None:
+        df = df[df["case_id"].astype(str) == case_id]
     if zones:
         df = df[df["zone"].isin(zones.split(","))]
     return _interval_page(df.iloc[offset:offset + limit], len(df), offset)

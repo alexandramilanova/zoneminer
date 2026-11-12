@@ -9,15 +9,8 @@ import { useAppState } from "../state";
 import PetriNetView from "../components/PetriNetView";
 import TrendChart, { type TrendRow } from "../components/TrendChart";
 import { NeedsAnalysis, ZoneChip } from "../components/shared";
-import { resolveColor } from "../lib/plot";
-
-interface Interval {
-  case_id: string;
-  place: string;
-  zone: string | null;
-  produced: number; // epoch ms
-  consumed: number | null;
-}
+import { resolveColor } from "../lib/plotTheme";
+import { indexReplayPlaces, indexedTokenCounts, indexedCasesAtPlace, upperBound, type ReplayInterval as Interval } from "../lib/replayIndex";
 
 const STEPS = 240;
 
@@ -27,18 +20,6 @@ const STEPS = 240;
  * viewer-timezone-independent. */
 function parseWallClock(s: string): number {
   return Date.parse(s.slice(0, 19).replace(" ", "T") + "Z");
-}
-
-/** index of first element > x in a sorted array */
-function upperBound(arr: number[], x: number): number {
-  let lo = 0;
-  let hi = arr.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (arr[mid] <= x) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
 }
 
 /** One case's journey through the zones: a lane per visited
@@ -150,17 +131,18 @@ export default function Replay() {
     return () => { active = false; };
   }, [analysisId, analysis?.has_artifacts]);
 
-  // zone stays are fetched lazily, once, when a case is first inspected
+  // Read only the inspected case, with cancellation on selection changes.
   useEffect(() => {
-    if (!analysisId || !selectedCase || stays !== null) return;
+    setStays(null);
+    if (!analysisId || !selectedCase) return;
     const controller = new AbortController();
     setJourneyError(null);
     api
-      .zoneStays(analysisId, controller.signal)
+      .caseStays(analysisId, selectedCase, controller.signal)
       .then((r) => { if (!controller.signal.aborted) setStays(r.rows); })
       .catch((e) => { if (!controller.signal.aborted) setJourneyError(String(e)); });
     return () => controller.abort();
-  }, [analysisId, selectedCase, stays]);
+  }, [analysisId, selectedCase]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -209,15 +191,8 @@ export default function Replay() {
 
   const now = times[step] ?? t0;
 
-  const tokenCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const iv of intervals) {
-      if (iv.produced <= now && (iv.consumed === null || iv.consumed > now)) {
-        counts[iv.place] = (counts[iv.place] ?? 0) + 1;
-      }
-    }
-    return counts;
-  }, [intervals, now]);
+  const placeIndex = useMemo(() => indexReplayPlaces(intervals), [intervals]);
+  const tokenCounts = useMemo(() => indexedTokenCounts(placeIndex, now), [placeIndex, now]);
 
   // O((n + zones·steps)·log n) event sweep: per zone, sorted produced/consumed
   // timestamp arrays once, then occupancy(t) = #produced≤t − #consumed≤t.
@@ -266,20 +241,7 @@ export default function Replay() {
     return out;
   }, [bottlenecks, now]);
 
-  const casesAtPlace = useMemo(() => {
-    if (!selectedPlace) return [];
-    const ids = new Set<string>();
-    for (const iv of intervals) {
-      if (
-        iv.place === selectedPlace &&
-        iv.produced <= now &&
-        (iv.consumed === null || iv.consumed > now)
-      ) {
-        ids.add(iv.case_id);
-      }
-    }
-    return Array.from(ids).sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
-  }, [intervals, selectedPlace, now]);
+  const casesAtPlace = useMemo(() => indexedCasesAtPlace(placeIndex, selectedPlace, now), [placeIndex, selectedPlace, now]);
 
   const caseStays = useMemo(
     () => (selectedCase && stays ? stays.filter((s) => s.case_id === selectedCase) : []),

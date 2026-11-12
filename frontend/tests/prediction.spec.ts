@@ -17,6 +17,7 @@ async function configure(page:Page){
   await page.getByRole('combobox',{name:'Target zone',exact:true}).selectOption('Work');
   await page.getByRole('combobox',{name:'Target metric',exact:true}).selectOption('token_present_end');
   await page.getByRole('spinbutton',{name:'Threshold',exact:true}).fill('3');
+  if (!await page.getByRole('checkbox',{name:'Predictor Token present at window end',exact:true}).isVisible()) await page.locator('summary').filter({hasText:/^Token metrics/}).click();
   await page.getByRole('checkbox',{name:'Predictor Token present at window end',exact:true}).check();
 }
 
@@ -136,6 +137,7 @@ test('historical quantile defaults are editable, resettable, and recorded withou
   await expect(threshold).toHaveValue(String(suggestions['>='].value));
   await page.getByRole('combobox',{name:'Condition',exact:true}).selectOption('<=');
   await expect(threshold).toHaveValue(String(suggestions['<='].value));
+  if (!await page.getByRole('checkbox',{name:'Predictor Token present at window end',exact:true}).isVisible()) await page.locator('summary').filter({hasText:/^Token metrics/}).click();
   await page.getByRole('checkbox',{name:'Predictor Token present at window end',exact:true}).check();
   const pending=page.waitForResponse(r=>r.url().endsWith('/prediction/retrospective')&&r.request().method()==='POST');
   await page.getByRole('button',{name:'Compare three models'}).click();const response=await pending;

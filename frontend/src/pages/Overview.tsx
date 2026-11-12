@@ -17,7 +17,7 @@ import {
   ZoneChip,
   fmtCell,
 } from "../components/shared";
-import { resolveColor } from "../lib/plot";
+import { resolveColor } from "../lib/plotTheme";
 
 interface AlertRule {
   metric: string;
@@ -94,33 +94,40 @@ export default function Overview() {
 
   useEffect(() => {
     if (!analysisId || !analysis?.has_artifacts) return;
-    Promise.all([
-      api.overview(analysisId),
-      api.metricCatalog(analysisId),
-      api.features(analysisId, { metrics: ["token_present_end"] }),
-    ])
-      .then(([o, cat, feat]) => {
-        setData(o);
-        setCatalog(cat);
-        const byZone: Record<string, number[]> = {};
-        for (const r of feat.rows) {
-          const z = String(r.zone);
-          (byZone[z] ??= []).push(Number(r.token_present_end ?? 0));
-        }
-        setSeries(byZone);
-      })
-      .catch((e) => setError(String(e)));
+    let cancelled = false;
+    setData(null);
+    setCatalog(null);
+    setSeries({});
+    setFlowMap(null);
+    setError(null);
+    // Render the snapshot immediately; optional controls and sparklines must
+    // not block it while private workers process companion requests.
+    api.overview(analysisId).then(o => { if (!cancelled) setData(o); })
+      .catch(e => { if (!cancelled) setError(String(e)); });
+    api.metricCatalog(analysisId).then(cat => { if (!cancelled) setCatalog(cat); })
+      .catch(e => { if (!cancelled) setError(String(e)); });
+    api.features(analysisId, { metrics: ["token_present_end"] }).then(feat => {
+      if (cancelled) return;
+      const byZone: Record<string, number[]> = {};
+      for (const r of feat.rows) {
+        const z = String(r.zone);
+        (byZone[z] ??= []).push(Number(r.token_present_end ?? 0));
+      }
+      setSeries(byZone);
+    }).catch(e => { if (!cancelled) setError(String(e)); });
     loadAlerts();
     // flow map: handover edges + latest bottleneck state per zone (best-effort)
     Promise.all([api.handovers(analysisId), api.bottlenecks(analysisId)])
       .then(([h, b]) => {
+        if (cancelled) return;
         const states = new Map<string, BottleneckState>();
         for (const z of b.zones) {
           if (z.states.length) states.set(z.zone, z.states[z.states.length - 1]);
         }
         setFlowMap({ pairs: h.pairs, states });
       })
-      .catch(() => setFlowMap({ pairs: [], states: new Map() }));
+      .catch(() => { if (!cancelled) setFlowMap({ pairs: [], states: new Map() }); });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisId, analysis?.has_artifacts]);
 

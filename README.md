@@ -4,264 +4,196 @@ sdk: docker
 app_port: 7860
 ---
 
-# ZoneMiner — token-flow analysis for business processes
+# ZoneMiner
 
-ZoneMiner analyzes business processes at an intermediate granularity between
-single activities and the whole process: the user groups Petri-net **places into
-zones** ("Payment & Risk", "Fulfillment", …), and the tool reconstructs token- and
-case-level behavior via **alignment replay**, aggregates it into a time-windowed
-**zone-feature table**, and offers descriptive and predictive analyses on top —
-including an **animated token-flow replay** and a **click-on-the-net zone editor**.
+ZoneMiner explores business processes through **zones**: groups of Petri-net
+places representing parts of a process, such as Payment & Risk or Fulfillment.
+It reconstructs token and case movements through alignment replay, measures
+zone behavior over time, and connects aggregate patterns to individual cases.
 
-Built at the Chair of Process and Data Science (PADS), RWTH Aachen University.
-An independent tool for reproducible zone-level process analysis, combining
-interactive model exploration, time-windowed measurements and interpretable
-retrospective prediction.
+Developed at the Chair of Process and Data Science (PADS), RWTH Aachen University.
 
-**Availability:** hosted Hugging Face deployment (currently private), local Docker or source installation · **License:** MIT application code; dependency licenses apply
+## Run with Docker
 
-## Hosted application and local performance
+Docker is the simplest local installation; host Python and Node installations
+are not required. Repository access is currently required to clone the source.
 
-The deployed application is available at
-[ZoneMiner on Hugging Face](https://huggingface.co/spaces/alexandramilanova/zoneminer).
-Use the [direct application URL](https://alexandramilanova-zoneminer.hf.space)
-for uploads and analysis. The Space is currently private; access requires
-permission from its owner. This is not yet an anonymous public release.
-
-**Local installation is recommended for full performance**, especially for large
-event logs, complex process models, repeated experiments or intensive prediction.
-The hosted version provides the same analysis features, but shares finite CPU,
-memory and temporary storage. Computations are queued, and large workloads can
-take longer or exceed the available resources. There is no default fixed upload
-size or event-count cap; this does not guarantee that every input will fit or
-finish. Local performance also depends on the resources of your own machine.
-
-Hosted uploads and results belong to temporary visitor workspaces that expire
-after 24 hours and can be lost on a restart or rebuild. Download results you want
-to retain. See [deployment and resource details](docs/hugging-face.md).
-
-## Features
-
-- **Zone editor on the Petri net** — draw zones by clicking places directly in the
-  model (cytoscape.js); validity (disjointness, connectedness) checked live.
-- **Token replay** — every token's stay in every place, reconstructed by alignment
-  replay and animated over time with a synchronized zone-occupancy timeline.
-- **Overview & alerts** — per-zone load, open-token age, threshold alerts.
-- **Trends & change points** — zone metrics over time windows with PELT-based
-  change-point detection, plus a zone × window heatmap.
-- **Flow patterns** — per-zone performance spectrum (duration-quartile colored),
-  cumulative flow diagrams, a batch & overtaking fingerprint scatter, an
-  inter-zone handover Sankey with a time slider, a queueing profile
-  (Little's-law consistency, burstiness, load-dependence), and heuristic
-  bottleneck states (flowing / queueing / blocked / starving). The feature
-  table carries matching metrics: FIFO inversions/overtaking, batching,
-  revisits/rework, sojourn percentiles, open-token aging, and zone-attributed
-  fitness — see [the flow-pattern reference](docs/flow-patterns-reference.md) for the research grounding.
-- **Zone flow map** — the process collapsed to a zone graph on the Overview
-  (load, flow volumes, bottleneck-state halos), plus alert "likely contributor"
-  hints ranking upstream zones by lagged association.
-- **Drift & comparison** — per-zone multivariate drift scores (energy
-  distance), and a two-period comparison with Welch tests under
-  false-discovery-rate control. Dependency scans carry FDR-controlled
-  significance flags.
-- **Open-case outlook** — descriptive remaining-time estimates for cases open
-  at any chosen moment, by conditional survival on the zone's own history
-  (no future data; actuals shown for validation).
-- **Case journey in the replay** — click a place to see the cases sitting
-  there, click a case to follow its whole path through the zones; bottleneck
-  states halo the net in sync with the playback clock.
-- **Queue-model lens & what-if (experimental)** — each zone fitted as a mined
-  G/G/1 queue with an explicit fit verdict, and a capacity what-if that
-  replays actual arrivals through a calibrated c-server queue — refusing to
-  run when no constant capacity reproduces reality. Duration trends carry
-  95% confidence bands.
-- **Dependencies** — time-lagged cross-zone correlations. *Association, not
-  causation* — the tool says so wherever these numbers appear.
-- **Prediction** — retrospective threshold classification over
-  complete-trace reconstructed zone features, comparing decision tree, random
-  forest and histogram gradient boosting. Choose a target, threshold, fixed
-  horizon and predictor metrics; technical defaults and temporal evaluation are
-  automatic. All 43 metric identifiers remain available where values exist.
-  Tree, SHAP, fold class counts and persistence/majority baselines explain results.
-  Optional training-only class balancing handles imbalanced conditions; pooled
-  model and baseline scores share the primary comparison table.
-  These are exploratory reconstructed-history experiments, not validated live
-  forecasts. See [the retrospective protocol](docs/retrospective-prediction.md).
-- **Metrics reference** — every metric explained in-app, generated from one
-  canonical metric schema.
-- **Downloads** — Plotly charts export PNG/SVG; result tables export their
-  displayed rows as CSV with numeric precision preserved. Trend-data CSVs
-  include analysis identity, units, and normalization settings.
-- **Optional model helpers** — process-tree availability is explained per
-  model; compatible Petri nets can render BPMN directly without a process tree.
-  Helper diagrams do not replace the net used for zones and replay.
-
-## Architecture
-
-```
-frontend/            React + TypeScript + Vite SPA (cytoscape.js net view,
-                     Plotly charts, SSE progress) — served by the backend after building
-backend/             FastAPI service: upload, zone validation, analysis jobs with
-                     staged SSE progress, DuckDB/Parquet persistence (content-
-                     addressed: reusable artifacts for matching inputs)
-services/            UI-agnostic orchestration layer (the single entry point both
-                     the API and the legacy Streamlit app call)
-process_model/       Process-mining core: log/PNML IO, alignment replay,
-                     token/case zone features, window-level conformance,
-                     zone validation & suggestion heuristic
-  alignment_backends.py  switchable alignment engines: rust4pm (fast, default)
-                         and pm4py (reference) — identical optimal costs
-analytics/           Time-series analyses over the zone-feature table: alerts,
-                     change points (PELT), lagged correlations; retrospective
-                     classification and a restricted prospective research API,
-                     canonical metric schema
-app.py               Legacy Streamlit app — kept as the reference implementation
-                     ("the oracle") for numerical parity checks; new numbers
-                     are checked against it (tools/parity_gate.py)
-data/demo/           Bundled demo dataset: seeded e-commerce order-fulfillment
-                     log + hand-built Petri net + five-zone system
-tests/               unittest suite incl. end-to-end regression baseline and
-                     pm4py-vs-r4pm backend parity checks
-tools/               demo-data generation, baseline recording, parity gate,
-                     demo precompute
-```
-
-## Quickstart
-
-The following instructions run the application locally, using your machine's
-resources and a persistent workspace rather than the hosted service's shared
-compute capacity and temporary sessions. Repository access is currently required
-to clone the source.
-
-Requires Python ≥ 3.12 and Node 22 for a source installation. Docker builds
-both runtimes for you. Graphviz (`dot`) is needed for helper diagrams and the
-legacy interface; install it through your OS package manager.
-
-```bash
+```sh
 git clone https://github.com/alexandramilanova/zoneminer.git
 cd zoneminer
-python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install --require-hashes -r requirements.txt
-
-# build the frontend once
-cd frontend && npm ci && npm run build && cd ..
-
-# optional: precompute the demo analysis so the first click is instant
-python tools/precompute_demo.py
-
-# 8765 on purpose — Docker Desktop and other tools often occupy port 8000
-uvicorn backend.main:app --port 8765
-# open http://127.0.0.1:8765 and click "Load demo dataset"
-# (Windows: just double-click "Start Zone Analytics.bat" instead)
+docker build -t zoneminer .
+docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zoneminer-data:/app/var zoneminer
 ```
 
-Or with Docker (no host Python or Node installation needed):
+Open [http://127.0.0.1:7860](http://127.0.0.1:7860), then choose **Load demo dataset**
+or upload your own log. Keep the terminal running while using the application.
+Stop it with Ctrl+C; restart the existing container with `docker start zoneminer`.
 
-```bash
-docker build -t zone-analytics .
-docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zone-analytics-data:/app/var zone-analytics
-# open http://127.0.0.1:7860
-```
+The named volume retains uploads, analyses and discovered models across container
+replacement. Keep it when upgrading the image. A new, empty named volume receives
+the image's precomputed demo store; an empty host bind mount can hide that store.
 
-The named volume retains uploads, analyses, discovered models, and forecasting
-records across container replacement. Keep it when upgrading the image. An
-empty Docker named volume is initially populated from the image's precomputed
-store; an empty host bind mount can hide that store instead.
-Start this existing container again with `docker start zoneminer`.
+## Use the tool
 
-For development, run `uvicorn backend.main:app --reload --port 8000` and,
-in another terminal, `cd frontend && npm run dev`. Vite proxies `/api` to port
-8000. The port 8765 quickstart serves the built frontend and needs no Vite proxy.
+1. Load the bundled demo or upload an uncompressed XES or CSV event log. You may
+   also upload a PNML Petri net. For a log without a model, choose the discovery
+   noise threshold; the model can be rediscovered later without changing the log.
+2. Define zones by selecting places in the model. The zone overview shows each
+   zone's size and total place coverage; click a zone to edit it. Zones must be
+   disjoint and connected. Activity-label suggestions can help with selection.
+3. Choose a time window and run the analysis. The demo includes a precomputed
+   analysis for a quick first exploration.
+4. Explore the views below, or use **Tour**, available before upload and after
+   analysis. Export charts and tables to retain results.
 
-The legacy Streamlit interface still works: `pip install streamlit`, then
-`python -m streamlit run app.py`.
+| View | What it provides |
+| --- | --- |
+| Overview | Zone load, open-token age, alerts and a zone flow map. |
+| Token replay | Animated token movement, synchronized occupancy and individual case journeys. |
+| Trends and change points | Selected metric series, change detection and an optional heatmap. |
+| Flow patterns | Performance spectra, cumulative flows, batching, overtaking, handovers and queueing profiles. |
+| Dependencies | Lagged cross-zone associations, paired-window coverage and an explained statistical check. |
+| Prediction | Retrospective threshold classification with temporal evaluation, baselines, trees and SHAP explanations. |
+| Metrics reference | Definitions, units and scope for the available measurements. |
 
-## Tests
+Expandable analysis sections start closed. Charts export PNG or SVG; tables
+export their displayed rows as CSV. Trend-data exports include units,
+normalization settings and analysis identity.
 
-Python dependencies are generated from `pyproject.toml` into hash-verified locks.
-For tests and the legacy interface, install
-`pip install --require-hashes -r requirements-test.txt`.
-See [dependency locking and license review](docs/dependency-review.md).
+Four small bundled scenarios illustrate express-lane overtaking, batch dispatch,
+review and rework, and a capacity bottleneck. They are available in the workspace
+alongside the five-zone order-fulfillment demo.
 
-```bash
-python -m unittest discover -s tests   # unit, regression baseline, API, backend parity
-python tools/parity_gate.py            # oracle vs API (pm4py exact, r4pm within tolerance)
-```
+## Hosted application
 
-CI runs both plus the frontend build on every push (`.github/workflows/tests.yml`).
-Browser tests run separately; see [frontend/tests/README.md](frontend/tests/README.md).
-Request-admission unit checks run from `frontend/` with
-`node --test tests/request-queue.test.mjs`.
+The [Hugging Face Space](https://huggingface.co/spaces/alexandramilanova/zoneminer)
+and [direct application](https://alexandramilanova-zoneminer.hf.space) are currently
+private; access requires permission from the owner. The GitHub repository also
+currently requires access. These links do not yet provide anonymous reviewer access.
 
-Local mode keeps a persistent trusted workspace. The optional anonymous runtime
-isolates visitors in temporary workspaces with expiry, deletion, and resource
-limits; see [the runtime contract](docs/anonymous-workspaces.md).
-See [Hugging Face setup](docs/hugging-face.md) for private staging and the
-[dependency requirements](docs/dependency-review.md) before public release.
+Local Docker installation is recommended for large logs or intensive analysis.
+The hosted service shares finite CPU, memory and temporary storage; difficult
+alignment problems can take substantial time on either installation. There is no
+default fixed upload-size or event-count cap, but available resources still limit
+what can finish.
 
-## Data
+Hosted visitor workspaces expire after 24 hours and may be lost on restart or
+rebuild. Download results you want to keep. See the
+[deployment guide](docs/hugging-face.md) and
+[anonymous workspace contract](docs/anonymous-workspaces.md).
 
-The bundled demo dataset (`data/demo/`) is a seeded, fully reproducible synthetic
-**online order-fulfillment** process (five zones, injected drifts: arrival surge,
-payment-risk drift, fulfillment capacity bottleneck, quality drift) — regenerate
-with `python tools/build_demo_data.py`. Public event logs may be uploaded separately; external datasets are not
+## Public-log evaluation
+
+Nine complete public event logs were analyzed, covering **187,214 cases and
+834,858 events**, without case or event sampling. The
+[evaluation report](docs/evaluation/README.md) provides source DOI links,
+configurations, provenance, selected cross-zone associations and reproduction
+instructions. It explains the selection protocol and its limitations; the
+published associations are a curated selection, not the complete distribution
+or a benchmark of interactive response times. External event logs are not
 redistributed with the application.
 
-Four **example scenarios** (`data/examples/`, regenerate with
-`python tools/build_examples.py`) are selectable directly in the app, each a
-small seeded log + net + preconfigured zones built so one analysis family shows
-textbook behavior: *Express lane* (priority overtaking), *Batch dispatch* (two
-truck runs a day), *Review & rework* (documents loop back — real revisits and
-conformance noise), and *Capacity cliff* (a bottleneck is born, starves its
-downstream, and drains).
+## Source installation
 
-Uploads appear first in the workspace; example scenarios are collapsed by
-default. XES and CSV imports stably order events within each case by recorded
-timestamp and report reordering in the model notice. Equal timestamps keep file
-order; source timestamps are never repaired. Inspect inconsistent source dates
-before interpreting durations or discovered process order.
+Use Python 3.12 and Node.js 22, matching the Docker runtime. Install Graphviz
+(`dot`) through your operating system's package manager for helper diagrams.
+From the repository directory:
 
-The API reuses validated alignment/replay tables when zones or time windows
-change, persists discovered model identities, and separates alignment, token
-reconstruction, and conformance progress. Its bounded model cache and compute
-queue limit overlapping memory use. See [Replay semantics](process_model/REPLAY_SEMANTICS.md)
-for cache versioning, configuration, and scalability limits.
+```sh
+python3.12 -m venv .venv
+. .venv/bin/activate
+pip install --require-hashes -r requirements.txt
+cd frontend
+npm ci
+npm run build
+cd ..
+python tools/precompute_demo.py
+uvicorn backend.main:app --host 127.0.0.1 --port 8765
+```
 
-## Methodological notes (deliberate scope boundaries)
+Open [http://127.0.0.1:8765](http://127.0.0.1:8765). Demo precomputation is optional.
+On Windows, create the environment with `py -3.12 -m venv .venv` and activate it
+with `.venv\Scripts\activate` in Command Prompt. After installing dependencies and
+building the frontend, `Start Zone Analytics.bat` starts the application.
 
-These are documented decisions, not bugs:
+For development, run `uvicorn backend.main:app --reload --port 8000` and, in a
+second terminal, `cd frontend` followed by `npm run dev`. Vite proxies `/api` to
+port 8000. The built application on port 8765 needs no Vite development server.
 
-The supported net classes, exact-identity replay checks, and retained timing
-conventions are specified in [Replay semantics](process_model/REPLAY_SEMANTICS.md).
+## Tests and reproducibility
 
-- **Two conformance granularities**: trace-level metrics (fitness, deviation
-  rate) are window-level — computed from all traces completing in a window and
-  attached identically to every zone's row. In addition, alignment *moves*
-  (synchronous, move-on-log, move-on-model) are zone-attributed: each timed
-  move counts toward the zones adjacent to its transition, in the window of
-  its replayed timestamp. A move at a zone boundary counts for each adjacent
-  zone; moves whose activity does not occur in the model cannot be attributed
-  and appear only in the window-level totals.
-- **Dependency analysis is lagged Pearson correlation** — association, not
-  causation, and the UI language keeps that distinction everywhere.
-- **Zone definition is manual** (supported by an activity-label suggestion
-  heuristic, `process_model/zone_suggestions.py`); zones must be disjoint and
-  connected in the place-adjacency graph so zone metrics stay well-defined.
-- **Token vs. case counts diverge under parallelism** — one case can hold several
-  tokens in the same zone at once. This divergence is a feature the tool
-  visualizes, not an inconsistency.
+Install the hash-locked test dependencies in the activated environment:
+
+```sh
+pip install --require-hashes -r requirements-test.txt
+python -m unittest discover -s tests
+python tools/parity_gate.py
+cd frontend
+node --test tests/replay-index.test.mjs tests/request-queue.test.mjs
+```
+
+The parity gate compares the API pipeline with the legacy reference: the PM4Py
+path must match exactly; the Rust4PM path must match counts exactly and continuous
+measurements within the gate's tolerance.
+
+For browser checks, follow the [browser test guide](frontend/tests/README.md).
+Use an isolated test data directory because these tests upload logs and create
+analyses. CI runs the backend tests, parity gate, TypeScript/build checks,
+frontend unit tests and Chromium regression suite. Firefox, WebKit and anonymous
+workspace suites are also available for release validation.
+
+Regenerate the demo with `python tools/build_demo_data.py` and the example
+scenarios with `python tools/build_examples.py`. Python dependency locks are
+generated from `pyproject.toml`; see [dependency locking](docs/dependency-review.md).
+
+## Methods and implementation
+
+- Zones group places, rather than activities. One case can hold several tokens
+  in a zone under parallelism, so token and case counts can differ.
+- Imports order events by recorded timestamp within each case and retain file
+  order for ties. They report reordering and do not repair source timestamps.
+- Dependency analysis uses lagged Pearson correlation. Statistical support does
+  not establish causality or practical importance.
+- Prediction reconstructs complete-trace history for retrospective experiments;
+  it is not a validated live forecasting service.
+- Trace-level conformance is shared across zone rows for a time window.
+  Alignment moves are additionally attributed to adjacent zones; a boundary
+  move can contribute to more than one zone.
+
+| Directory | Responsibility |
+| --- | --- |
+| `frontend/` | React/TypeScript interface, model editor, charts and replay. |
+| `backend/` | FastAPI, analysis jobs, private sessions and DuckDB/Parquet persistence. |
+| `services/` | Shared analysis orchestration. |
+| `process_model/` | Log/model import, alignment, replay, zone validation and features. |
+| `analytics/` | Metrics, trends, changes, dependencies and prediction. |
+| `data/` | Synthetic demo and example scenarios. |
+| `tests/`, `tools/` | Regression checks, parity, data generation and maintenance tools. |
+
+`app.py` retains the legacy Streamlit reference used by numerical parity checks.
+To run that interface, install `requirements-test.txt`, then use
+`python -m streamlit run app.py`.
+
+Replay uses per-place time indexes. Model graphs and deterministic analysis views
+are cached, while charts load on demand. Alignment/replay artifacts can be reused
+when zones or time windows change. For semantics, cache identities and resource
+configuration, see [replay semantics](process_model/REPLAY_SEMANTICS.md).
+
+Further references: [metric semantics](docs/metric-semantics.md),
+[trends](docs/trends.md), [flow patterns](docs/flow-patterns-reference.md),
+[retrospective prediction](docs/retrospective-prediction.md), and the
+[restricted prospective research API](docs/forecasting-protocol.md).
 
 ## Citation
 
-Paper in preparation for the ICPM 2027 Demo and Resources Track, Category A.
+A paper is being prepared for the ICPM 2027 Demo and Resources Track, Category A.
 The manuscript is maintained separately from the application repository.
-The source-install URL above identifies this application repository.
-Release details and a citation will be added when published.
+Publication details and a citation will be added when available.
 
 ## License
 
-Application code: MIT — see [LICENSE](LICENSE). Dependencies retain their own
-licenses. PM4Py is used for model and log operations even with the default
-rust4pm alignment engine; its licensing is relevant to the distributed stack.
-Refer to [dependency requirements](docs/dependency-review.md) and
-[frontend redistribution notices](THIRD_PARTY_NOTICES.txt).
+Application-authored code is licensed under MIT; see [LICENSE](LICENSE).
+Dependencies retain their own licenses. PM4Py is used for log and model operations
+with either alignment engine and declares AGPL-3.0-or-later. See the
+[dependency and redistribution notes](docs/dependency-review.md) and
+[frontend notices](THIRD_PARTY_NOTICES.txt) for the distributed stack.

@@ -44,6 +44,13 @@ _BACKEND_ENV_VAR = "ZONE_ANALYTICS_ALIGNMENT_BACKEND"
 _VARIANT_BATCH_SIZE = 64
 
 
+def variant_batch_size() -> int:
+    value = int(os.environ.get("ZONE_ANALYTICS_ALIGNMENT_BATCH_SIZE", str(_VARIANT_BATCH_SIZE)))
+    if not 1 <= value <= 1024:
+        raise ValueError("ZONE_ANALYTICS_ALIGNMENT_BATCH_SIZE must be between 1 and 1024")
+    return value
+
+
 def resolve_backend(backend: Optional[str] = None) -> str:
     resolved = (backend or os.environ.get(_BACKEND_ENV_VAR) or DEFAULT_BACKEND).lower()
     if resolved not in ("pm4py", "r4pm"):
@@ -168,8 +175,9 @@ def compute_alignments_r4pm(log, net: PetriNet, im: Marking, fm: Marking, progre
 
     variant_cache: dict[tuple[str, ...], dict] = {}
     variants = list(frequencies)
-    for start in range(0, total_variants, _VARIANT_BATCH_SIZE):
-        batch = {labels: frequencies[labels] for labels in variants[start:start + _VARIANT_BATCH_SIZE]}
+    batch_size = variant_batch_size()
+    for start in range(0, total_variants, batch_size):
+        batch = {labels: frequencies[labels] for labels in variants[start:start + batch_size]}
         rows = _align_variant_batch(r4pm, align_variants_id, r_net, batch, options)
         if not isinstance(rows, list):
             raise ValueError("Rust4PM did not return a variant alignment list")

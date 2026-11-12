@@ -59,6 +59,7 @@ test('trend data and displayed change rows download as CSV; plots as PNG and SVG
     if (format === 'PNG') expect(bytes.subarray(1, 4).toString()).toBe('PNG'); else expect(bytes.toString()).toContain('<svg');
   }
   pending = page.waitForEvent('download');
+  await plot.getByTestId('detected-changes').locator('summary').click();
   await plot.getByTestId('detected-changes').getByRole('button', { name: 'Download displayed rows (CSV)' }).click();
   download = await pending; csv = readFileSync((await download.path())!, 'utf8');
   expect(csv).toContain('"type","timestamp","zone","metric","selection","order"'); expect(csv).toContain('"Local"');

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend import store
 from backend.isolation import endpoint
@@ -32,6 +32,7 @@ async def upload_dataset(
     log: UploadFile = File(...),
     pnml: Optional[UploadFile] = File(None),
     name: Optional[str] = None,
+    noise_threshold: float = Form(0.0, ge=0.0, le=1.0),
 ):
     import hashlib
     import os
@@ -41,6 +42,8 @@ async def upload_dataset(
     from backend.sessions import check_storage
 
     log_name = Path(log.filename or "log.csv").name[:200]
+    if pnml and noise_threshold:
+        raise HTTPException(400, "Discovery settings apply only when no PNML model is supplied.")
     suffix = Path(log_name).suffix.lower()
     if suffix not in {".csv", ".xes"}:
         raise HTTPException(400, "Unsupported log format — upload a .csv or .xes file (uncompressed)")
@@ -80,6 +83,7 @@ async def upload_dataset(
             digest.update(b"\x00")
             if pnml:
                 await copy_upload(pnml, model_path, model_limit * 1024 * 1024 if model_limit else None, True)
+            digest.update(store.discovery_identity_suffix(noise_threshold))
             check_storage()
             dataset_id = digest.hexdigest()[:16]
             existing = store.get_dataset(dataset_id)
@@ -87,6 +91,7 @@ async def upload_dataset(
                 return {**existing, "deduplicated": True}
             meta = store.save_dataset_files(dataset_id, (name or log_name)[:200], log_path, log_name,
                                             model_path, "model.pnml" if pnml else None)
+            store.save_discovery_threshold(dataset_id, noise_threshold)
             try:
                 if config.data_dir() != config.DATA_DIR:
                     await run_in_threadpool(isolation.run, "backend.isolation", "parse_dataset", dataset_id)
@@ -131,6 +136,7 @@ def get_model_graph(dataset_id: str):
     arcs = []
     for arc in net.arcs:
         arcs.append({"source": arc.source.name, "target": arc.target.name, "weight": int(arc.weight)})
+    arcs.sort(key=lambda arc: (arc["source"], arc["target"], arc["weight"]))
     return {
         "places": places,
         "transitions": transitions,
@@ -144,7 +150,52 @@ def get_model_graph(dataset_id: str):
         "bpmn_available": getattr(bundle, "bpmn_graph", None) is not None,
         "process_tree_reason": getattr(bundle, "process_tree_notice", None),
         "bpmn_reason": getattr(bundle, "bpmn_notice", None),
+        "discovery_noise_threshold": store.discovery_threshold(dataset_id) if bundle.model_source == "discovered_from_log" else None,
+        "case_count": len(bundle.log),
+        "event_count": sum(map(len, bundle.log)),
     }
+
+
+class DiscoveryRequest(BaseModel):
+    noise_threshold: float = Field(0.0, ge=0.0, le=1.0)
+
+
+@router.post("/{dataset_id}/discover")
+@endpoint
+def rediscover_model(dataset_id: str, body: DiscoveryRequest):
+    """Create a separate model identity; existing zones/results remain valid."""
+    import hashlib
+    from backend import config, isolation
+    from backend.sessions import check_storage
+    source = store.get_dataset(dataset_id)
+    if source is None:
+        raise HTTPException(404, "Dataset not found")
+    log_path, pnml_path = store.dataset_file_paths(dataset_id)
+    if pnml_path:
+        raise HTTPException(400, "Rediscovery is available only for logs without an uploaded PNML model.")
+    digest = hashlib.sha256()
+    with open(log_path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(65536), b""):
+            digest.update(chunk)
+    digest.update(b"\x00")
+    digest.update(store.discovery_identity_suffix(body.noise_threshold))
+    target_id = digest.hexdigest()[:16]
+    existing = store.get_dataset(target_id)
+    if existing:
+        return {**existing, "deduplicated": True}
+    maximum = config.optional_limit("MAX_DATASETS")
+    if maximum is not None and len(store.list_datasets()) >= maximum:
+        raise HTTPException(429, "This workspace has reached its dataset limit.")
+    check_storage()
+    meta = store.save_dataset_files(target_id, source["name"], log_path, source["log_filename"], None, None)
+    store.save_discovery_threshold(target_id, body.noise_threshold)
+    try:
+        isolation.parse_dataset(target_id)
+        check_storage()
+    except Exception:
+        store.delete_dataset(target_id)
+        raise
+    return {**meta, "deduplicated": False}
 
 
 class ZoneValidationRequest(ZoneConfiguration):

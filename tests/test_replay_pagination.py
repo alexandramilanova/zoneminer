@@ -80,3 +80,29 @@ class ReplayPaginationTests(unittest.TestCase):
                 empty, total = analyses.store.load_frame_page('x', 'token_place', 60000, 20000)
                 self.assertTrue(empty.empty)
                 self.assertEqual(total, len(frame))
+
+    def test_case_filter_reads_only_requested_rows_before_pagination(self):
+        frame = pd.DataFrame({'case_id': ['other', "quote'case", "quote'case", 'other'],
+                              'zone': ['A', 'A', 'B', 'B'],
+                              'entry_ts': pd.to_datetime(['2024-01-01'] * 4),
+                              'exit_ts': pd.to_datetime(['2024-01-02', None, '2024-01-03', None])})
+        with tempfile.TemporaryDirectory() as directory, duckdb.connect() as con:
+            con.register('rows', frame)
+            con.execute('COPY rows TO ? (FORMAT PARQUET)', [directory + '/case_zone_stays.parquet'])
+            with patch.object(analyses.store, 'analysis_dir', return_value=directory), \
+                 patch.object(analyses.store, '_connect', return_value=con), \
+                 patch.object(analyses.store, '_access', side_effect=nullcontext), \
+                 patch.object(analyses, '_zone_stays_frame', side_effect=AssertionError('Full stay table loaded')):
+                response = self.client.get('/api/analyses/x/zone-stays', params={'case_id': "quote'case", 'limit': 1})
+                self.assertEqual(response.status_code, 200, response.text)
+                first = response.json()
+                self.assertEqual(first['total_count'], 2)
+                self.assertEqual(first['rows'][0]['case_id'], "quote'case")
+                self.assertEqual(first['next_offset'], 1)
+                last = self.client.get('/api/analyses/x/zone-stays', params={'case_id': "quote'case", 'offset': 1}).json()
+                self.assertEqual(last['rows'][0]['zone'], 'B')
+                self.assertIsNone(last['next_offset'])
+                only_zone = self.client.get('/api/analyses/x/zone-stays', params={'case_id': "quote'case", 'zones': 'A'}).json()
+                self.assertEqual(only_zone['total_count'], 1)
+                missing = self.client.get('/api/analyses/x/zone-stays', params={'case_id': 'missing'}).json()
+                self.assertEqual(missing['rows'], [])

@@ -9,6 +9,7 @@ export default function ZonePlaceSuggestions({ datasetId, zoneName, activities, 
   takenElsewhere: Set<string>;
   onApply: (places: string[]) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [suggested, setSuggested] = useState<string[] | null>(null);
   const [selectedPlaces, setSelectedPlaces] = useState<string[]>([]);
@@ -35,8 +36,9 @@ export default function ZonePlaceSuggestions({ datasetId, zoneName, activities, 
   };
   const eligible = selectedPlaces.filter((p) => !takenElsewhere.has(p));
 
-  return <details style={{ marginTop: 10 }}>
+  return <details style={{ marginTop: 10 }} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary style={{ cursor: "pointer" }}>Suggest places from activity names</summary>
+    {open && <>
     <p className="help">Select activities for “{zoneName}”. The heuristic proposes places around and between them; select which suggestions to add. Places assigned to other zones stay there.</p>
     <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
       <legend className="help">Activities</legend>
@@ -70,6 +72,7 @@ export default function ZonePlaceSuggestions({ datasetId, zoneName, activities, 
         setSuggested(null);
         setSelectedPlaces([]);
       }}>Apply selected places to zone</button>
+    </>}
     </>}
   </details>;
 }

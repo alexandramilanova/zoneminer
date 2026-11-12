@@ -22,7 +22,7 @@ import { BpmnView, ProcessTreeView } from "../components/ModelViews";
 type EditorZone = ZoneDraft & { draftKey: number };
 
 export default function Workspace() {
-  const { analysis, setAnalysisId } = useAppState();
+  const { analysis, setAnalysisId, setWorkspaceDirty } = useAppState();
   const navigate = useNavigate();
 
   const [datasetId, setDatasetId] = useState<string | null>(analysis?.dataset_id ?? null);
@@ -37,6 +37,9 @@ export default function Workspace() {
   const [running, setRunning] = useState(false);
   const [activeZone, setActiveZone] = useState(0);
   const [showBpmn, setShowBpmn] = useState(false);
+  const [noiseThreshold, setNoiseThreshold] = useState(0);
+  const [uploadHasModel, setUploadHasModel] = useState(false);
+  const [confirmDiscovery, setConfirmDiscovery] = useState(false);
   const [showTree, setShowTree] = useState(false);
   const [examples, setExamples] = useState<ExampleScenario[]>([]);
   const unsubscribe = useRef<(() => void) | null>(null);
@@ -65,6 +68,11 @@ export default function Workspace() {
     JSON.stringify(zoneDrafts.map((z) => [z.name.trim(), z.places.slice().sort()]).sort()) !==
     JSON.stringify(Object.entries(analysis.zone_places).map(([n, p]) => [n, p.slice().sort()]).sort())
   ));
+
+  useEffect(() => {
+    setWorkspaceDirty(Boolean(graph && (configurationChanged || busy || running)));
+  }, [graph, configurationChanged, busy, running, setWorkspaceDirty]);
+  useEffect(() => () => setWorkspaceDirty(false), [setWorkspaceDirty]);
 
   useEffect(() => {
     api
@@ -101,6 +109,8 @@ export default function Workspace() {
       setDatasetId(id);
       setDatasetName(name);
       setGraph(g);
+      setNoiseThreshold(g.discovery_noise_threshold ?? 0);
+      setConfirmDiscovery(false);
       setShowTree(false);
       setShowBpmn(false);
       setValidation(null);
@@ -158,9 +168,35 @@ export default function Workspace() {
     setBusy("Uploading & parsing…");
     setError(null);
     try {
-      const ds: Dataset = await api.uploadDataset(logFile, pnmlFile);
+      const ds: Dataset = await api.uploadDataset(logFile, pnmlFile, noiseThreshold);
       if (!await loadDataset(ds.id, ds.name)) return;
       setZoneDrafts([{ name: "Zone 1", places: [] }]);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const addZone = () => {
+    const names = new Set(zoneDrafts.map((z) => z.name.trim()));
+    let number = 1;
+    while (names.has(`Zone ${number}`)) number++;
+    setActiveZone(zoneDrafts.length);
+    setZoneDrafts((previous) => [...previous, { name: `Zone ${number}`, places: [] }]);
+  };
+
+  const rediscover = async () => {
+    if (!datasetId || busy || running) return;
+    beginSelection();
+    setBusy("Discovering model…");
+    setError(null);
+    try {
+      const result = await api.rediscover(datasetId, noiseThreshold);
+      if (!await loadDataset(result.id, result.name)) return;
+      setAnalysisId(null);
+      setZoneDrafts([{ name: "Zone 1", places: [] }]);
+      setConfirmDiscovery(false);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -233,7 +269,10 @@ export default function Workspace() {
   };
 
   const placeCount = graph?.places.length ?? 0;
-  const assignedCount = new Set(zoneDrafts.flatMap((z) => z.places)).size;
+  const selectedPlaces = new Set(zoneDrafts.flatMap((z) => z.places));
+  const knownPlaces = new Set(graph?.places ?? []);
+  const assignedCount = [...selectedPlaces].filter(place => knownPlaces.has(place)).length;
+  const unknownPlaceCount = selectedPlaces.size - assignedCount;
 
   // One canonical color assignment (sorted zone names -> fixed slots), matching
   // state.zoneColor so a zone keeps the same color here and in every analysis view.
@@ -263,9 +302,18 @@ export default function Workspace() {
             Event log (.csv / .xes) <input type="file" name="log" accept=".csv,.xes" />
           </label>
           <label className="help">
-            Petri net (.pnml, optional) <input type="file" name="pnml" accept=".pnml" />
+            Petri net (.pnml, optional) <input type="file" name="pnml" accept=".pnml" onChange={(e) => setUploadHasModel(Boolean(e.target.files?.length))} />
           </label>
-          <button className="primary" type="submit" disabled={busy !== null}>
+          {!uploadHasModel && <label className="help">
+            Discovery noise threshold
+            <select aria-label="Upload discovery noise threshold" value={noiseThreshold} onChange={(e) => setNoiseThreshold(Number(e.target.value))}>
+              <option value={0}>0 · Keep all observed behavior</option>
+              <option value={0.1}>0.1 · Filter infrequent behavior</option>
+              <option value={0.2}>0.2 · More filtering</option>
+              <option value={0.3}>0.3 · Stronger filtering</option>
+            </select>
+          </label>}
+          <button className="primary" type="submit" disabled={busy !== null || running}>
             Upload
           </button>
         </form>
@@ -330,52 +378,68 @@ export default function Workspace() {
           <div className="notice">
             Loaded <strong>{datasetName || datasetId}</strong>: {placeCount} places,{" "}
             {graph.transitions.length} transitions ({graph.model_source.replaceAll("_", " ")}).
+            {graph.case_count !== undefined && <> {graph.case_count.toLocaleString()} cases, {graph.event_count?.toLocaleString()} events.</>}
             {graph.model_notice && <details><summary>Model import details</summary><p className="help">{graph.model_notice}</p></details>}
           </div>
         )}
       </div>
 
+      {graph?.model_source === "discovered_from_log" && <div className="panel" aria-label="Model discovery">
+        <h2>Model discovery</h2>
+        <p className="help">Inductive Miner discovers the model. Higher noise thresholds allow infrequent behavior to be filtered during discovery; the full event log is still used for analysis.</p>
+        <div className="row">
+          <label>Noise threshold
+            <select aria-label="Model discovery noise threshold" value={noiseThreshold} onChange={(e) => { setNoiseThreshold(Number(e.target.value)); setConfirmDiscovery(false); }} disabled={busy !== null || running}>
+              <option value={0}>0 · Keep all observed behavior</option>
+              <option value={0.1}>0.1 · Filter infrequent behavior</option>
+              <option value={0.2}>0.2 · More filtering</option>
+              <option value={0.3}>0.3 · Stronger filtering</option>
+            </select>
+          </label>
+          <button disabled={busy !== null || running || noiseThreshold === (graph.discovery_noise_threshold ?? 0)} onClick={() => {
+            if (zoneDrafts.some((zone) => zone.places.length > 0)) setConfirmDiscovery(true);
+            else void rediscover();
+          }}>Rediscover model</button>
+          <span className="help">Current model: {graph.places.length} places, {graph.transitions.length} transitions; noise threshold {graph.discovery_noise_threshold ?? 0}.</span>
+        </div>
+        {confirmDiscovery && <div className="notice" role="alert">
+          Rediscovering resets the zone selection in this editor. Previous analysis results remain available with their original model.
+          <div className="row"><button onClick={() => void rediscover()} disabled={busy !== null || running}>Rediscover and reset zones</button><button onClick={() => setConfirmDiscovery(false)}>Keep current model</button></div>
+        </div>}
+      </div>}
+
       {graph && (
         <div className="panel">
           <h2>2 · Zones</h2>
           <p className="help">
-            {assignedCount}/{placeCount} places assigned. A place belongs to at most one zone;
+            A place belongs to at most one zone;
             unassigned places are fine. Each zone must be connected in the place-adjacency graph.
           </p>
           <div className="notice">
-            <strong>Draw zones on the net:</strong> select a zone below, then click unassigned
-            places to add them to it. Clicking any colored place removes it from its zone.
+            <strong>Draw zones on the net:</strong> select a zone, then click unassigned
+            places to add them to it. Click a selected-zone place to remove it; click another zone's place to select that zone.
             Scroll to zoom, drag to pan.
           </div>
-          <div className="row" style={{ marginBottom: 8 }}>
-            {zoneDrafts.map((z, i) => {
-              const name = z.name.trim() || `Zone ${i + 1}`;
-              return (
-                <button
-                  key={i}
-                  onClick={() => setActiveZone(i)}
-                  style={{
-                    borderColor: `var(--zone-${slotOf(name)})`,
-                    borderWidth: activeZone === i ? 2.5 : 1,
-                    fontWeight: activeZone === i ? 700 : 500,
-                  }}
-                >
-                  <span
-                    className="dot"
-                    style={{
-                      display: "inline-block",
-                      width: 9,
-                      height: 9,
-                      borderRadius: 3,
-                      background: `var(--zone-${slotOf(name)})`,
-                      marginRight: 6,
-                    }}
-                  />
-                  {name} ({z.places.length})
-                </button>
-              );
-            })}
+          <p className="zone-snapshot-summary" role="status">{zoneDrafts.length} {zoneDrafts.length === 1 ? 'zone' : 'zones'} · {assignedCount} of {placeCount} places assigned · {placeCount - assignedCount} unassigned{unknownPlaceCount > 0 ? ` · ${unknownPlaceCount} unknown place IDs` : ""}</p>
+          <div className="zone-snapshot" role="group" aria-label="Zone snapshot">
+            {zoneDrafts.map((z, i) => <button key={z.draftKey} className="zone-snapshot-card" aria-pressed={activeZone === i}
+              aria-label={`Edit ${z.name.trim() || `Zone ${i + 1}`}, ${z.places.length} places`} onClick={() => setActiveZone(i)}
+              style={{ borderLeftColor: `var(--zone-${slotOf(z.name.trim() || `Zone ${i + 1}`)})` }}>
+              <strong>{z.name.trim() || `Zone ${i + 1}`}</strong><span>{z.places.length} places{activeZone === i ? " · Editing" : ""}</span>
+            </button>)}
           </div>
+          <div className="zone-toolbar row">
+            <label>Editing zone
+              <select aria-label="Active zone" value={zoneDrafts.length ? activeZone : ""} onChange={(e) => setActiveZone(Number(e.target.value))} disabled={!zoneDrafts.length}>
+                {!zoneDrafts.length && <option value="">No zones yet</option>}
+                {zoneDrafts.map((z, i) => <option key={z.draftKey} value={i}>{z.name.trim() || `Zone ${i + 1}`} ({z.places.length} places)</option>)}
+              </select>
+            </label>
+            <button onClick={addZone} disabled={busy !== null || running}>+ Add zone</button>
+            {!zoneDrafts.length && <span className="help">Add a zone to start selecting places</span>}
+          </div>
+          <div className="zone-workbench">
+          <div className="zone-model">
           <PetriNetView
             graph={graph}
             zoneOf={Object.fromEntries(
@@ -385,20 +449,63 @@ export default function Workspace() {
             )}
             zoneColorOf={(zone) => `var(--zone-${slotOf(zone)})`}
             onPlaceClick={(place) => {
-              const assignedSomewhere = zoneDrafts.some((z) => z.places.includes(place));
+              if (busy || running) return;
+              const owner = zoneDrafts.findIndex((z) => z.places.includes(place));
+              if (owner >= 0 && owner !== activeZone) { setActiveZone(owner); return; }
+              const assignedSomewhere = owner === activeZone;
               setZoneDrafts((prev) =>
                 prev.map((z, i) => {
                   if (assignedSomewhere) {
-                    // click on any colored place: remove it from its zone (never steal)
-                    return { ...z, places: z.places.filter((p) => p !== place) };
+                    // Only toggle places in the active zone; other zones are selected first.
+                    return i === activeZone ? { ...z, places: z.places.filter((p) => p !== place) } : z;
                   }
                   // click on an unassigned place: add to the selected zone
                   return i === activeZone ? { ...z, places: [...z.places, place] } : z;
                 }),
               );
             }}
-            height={380}
+            selectedZone={zoneDrafts[activeZone]?.name.trim() || `Zone ${activeZone + 1}`}
+            height={440}
           />
+          </div>
+          <aside className="zone-controls" aria-label="Selected zone editor">
+            {!zoneDrafts.length && <p className="help">Add a zone, then select places on the model.</p>}
+          {zoneDrafts.map((z, i) => (
+            <div key={`${datasetId}:${z.draftKey}`} hidden={activeZone !== i}>
+            <ZoneEditor
+              key={`${datasetId}:${z.draftKey}`}
+              zone={z}
+              allPlaces={graph.places}
+              takenElsewhere={new Set(
+                zoneDrafts.filter((_, j) => j !== i).flatMap((zz) => zz.places),
+              )}
+              slot={i}
+              color={`var(--zone-${slotOf(z.name.trim() || `Zone ${i + 1}`)})`}
+              onChange={(nz) =>
+                setZoneDrafts((prev) => prev.map((p, j) => (j === i ? nz : p)))
+              }
+              suggestions={datasetId && graph.activity_labels.length > 0 ? <ZonePlaceSuggestions
+                datasetId={datasetId}
+                zoneName={z.name.trim() || `Zone ${i + 1}`}
+                activities={graph.activity_labels}
+                takenElsewhere={new Set(zoneDrafts.filter((other) => other.draftKey !== z.draftKey).flatMap((other) => other.places))}
+                onApply={(places) => setZoneDrafts((previous) => {
+                  const taken = new Set(previous.filter((other) => other.draftKey !== z.draftKey).flatMap((other) => other.places));
+                  return previous.map((other) => other.draftKey === z.draftKey
+                    ? { ...other, places: [...new Set([...other.places, ...places.filter((p) => !taken.has(p))])] }
+                    : other);
+                })}
+              /> : null}
+              onRemove={() => {
+                setZoneDrafts((prev) => prev.filter((_, j) => j !== i));
+                setActiveZone((current) => current > i ? current - 1 : current === i ? Math.max(0, i - 1) : current);
+              }}
+            />
+            </div>
+          ))}
+
+          </aside>
+          </div>
 
 
           <div className="row" style={{ marginTop: 12 }}>
@@ -432,47 +539,7 @@ export default function Workspace() {
           </p>}
           {showTree && datasetId && <div style={{ marginTop: 8 }}><ProcessTreeView key={datasetId} datasetId={datasetId} /></div>}
           {showBpmn && datasetId && <div style={{ marginTop: 8 }}><BpmnView key={datasetId} datasetId={datasetId} /></div>}
-          {zoneDrafts.map((z, i) => (
-            <ZoneEditor
-              key={`${datasetId}:${z.draftKey}`}
-              zone={z}
-              allPlaces={graph.places}
-              takenElsewhere={new Set(
-                zoneDrafts.filter((_, j) => j !== i).flatMap((zz) => zz.places),
-              )}
-              slot={i}
-              onChange={(nz) =>
-                setZoneDrafts((prev) => prev.map((p, j) => (j === i ? nz : p)))
-              }
-              suggestions={datasetId && graph.activity_labels.length > 0 ? <ZonePlaceSuggestions
-                datasetId={datasetId}
-                zoneName={z.name.trim() || `Zone ${i + 1}`}
-                activities={graph.activity_labels}
-                takenElsewhere={new Set(zoneDrafts.filter((other) => other.draftKey !== z.draftKey).flatMap((other) => other.places))}
-                onApply={(places) => setZoneDrafts((previous) => {
-                  const taken = new Set(previous.filter((other) => other.draftKey !== z.draftKey).flatMap((other) => other.places));
-                  return previous.map((other) => other.draftKey === z.draftKey
-                    ? { ...other, places: [...new Set([...other.places, ...places.filter((p) => !taken.has(p))])] }
-                    : other);
-                })}
-              /> : null}
-              onRemove={() => {
-                setZoneDrafts((prev) => prev.filter((_, j) => j !== i));
-                setActiveZone((current) => current > i ? current - 1 : current === i ? Math.max(0, i - 1) : current);
-              }}
-            />
-          ))}
           <div className="row" style={{ marginTop: 10 }}>
-            <button
-              onClick={() =>
-                setZoneDrafts((prev) => [
-                  ...prev,
-                  { name: `Zone ${prev.length + 1}`, places: [] },
-                ])
-              }
-            >
-              + Add zone
-            </button>
             <button onClick={validate} disabled={busy !== null || running}>Validate zones</button>
           </div>
           <div role="status" aria-live="polite" style={{ marginTop: 8 }}>
@@ -532,6 +599,7 @@ function ZoneEditor({
   allPlaces,
   takenElsewhere,
   slot,
+  color,
   onChange,
   onRemove,
   suggestions,
@@ -540,12 +608,12 @@ function ZoneEditor({
   allPlaces: string[];
   takenElsewhere: Set<string>;
   slot: number;
+  color: string;
   onChange: (z: EditorZone) => void;
   onRemove: () => void;
   suggestions: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(zone.places.length === 0);
-  const color = `var(--zone-${(slot % 8) + 1})`;
+  const [open, setOpen] = useState(false);
   return (
     <div role="group" aria-label={`Zone ${slot + 1} configuration`} style={{ border: "1px solid var(--grid)", borderRadius: 10, padding: "10px 12px", marginTop: 8 }}>
       <div className="row">
@@ -556,17 +624,17 @@ function ZoneEditor({
           aria-label={`Zone ${slot + 1} name`}
           value={zone.name}
           onChange={(e) => onChange({ ...zone, name: e.target.value })}
-          style={{ fontWeight: 600, minWidth: 200 }}
+          style={{ fontWeight: 600, width: "100%", minWidth: 0 }}
         />
         <span className="help">{zone.places.length} place(s)</span>
-        <button onClick={() => setOpen(!open)}>{open ? "Hide places" : "Edit places"}</button>
+        <button aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide places" : "Edit places"}</button>
         <button onClick={onRemove} title="Remove zone">
           ✕
         </button>
       </div>
       {suggestions}
       {open && (
-        <div className="checkgrid" style={{ marginTop: 8 }}>
+        <div className="checkgrid zone-place-list" style={{ marginTop: 8 }}>
           {[...new Set([...allPlaces, ...zone.places])].map((p) => {
             const inZone = zone.places.includes(p);
             const taken = !inZone && takenElsewhere.has(p);

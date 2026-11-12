@@ -42,9 +42,13 @@ async function open(page: Page, mocked = true) {
   await page.addInitScript((id) => localStorage.setItem('zone-analytics-current', id), analysisId);
   if (mocked) await page.route('**/trends/selection', (route) => route.fulfill({ json: response(route.request().postDataJSON()) }));
   await page.goto('/#/trends'); await expect(graphs(plots(page).first()).first()).toBeVisible();
+  await expect(plots(page).first().getByRole('button', {name:'Edit plot settings'})).toHaveAttribute('aria-expanded','false');
+  await plots(page).first().getByRole('button', {name:'Edit plot settings'}).click();
+  await plots(page).first().getByTestId('detected-changes').locator('summary').click();
 }
 async function clear(plot: Locator) { while (await plot.getByTestId('selected-pairs').getByRole('button').count()) await plot.getByTestId('selected-pairs').getByRole('button').first().click(); }
 async function add(plot: Locator, zone: string, metric: string) {
+  if (await plot.getByRole('button',{name:'Edit plot settings'}).count()) await plot.getByRole('button',{name:'Edit plot settings'}).click();
   await plot.getByRole('combobox', { name: 'Zone', exact: true }).selectOption(zone);
   await plot.getByRole('combobox', { name: 'Metric', exact: true }).selectOption(metric);
   await plot.getByRole('button', { name: 'Add series', exact: true }).click();
@@ -95,7 +99,7 @@ test('independent plots preserve configuration, title and requests after edits/r
   await open(page); const first = plots(page).first(), id = await first.getAttribute('data-plot-id');
   await page.getByRole('button', { name: 'Add Plot', exact: true }).click(); const second = plots(page).nth(1);
   await expect(second.getByText('No selected series. Add a zone–metric pair.')).toBeVisible();
-  await second.getByLabel('Plot title').fill('Payment age'); await add(second, payment, 'token_avg_age_open');
+  await second.getByRole('button',{name:'Edit plot settings'}).click(); await second.getByLabel('Plot title').fill('Payment age'); await add(second, payment, 'token_avg_age_open');
   await overallSwitch(second).check(); await strictness(second).fill('75');
   await expect(first.getByLabel('Plot title')).toHaveValue('Zone occupancy over time'); await expect(strictness(first)).toHaveValue('50');
   await expect(overallSwitch(first)).not.toBeChecked();
@@ -108,7 +112,7 @@ test('independent plots preserve configuration, title and requests after edits/r
 
 test('strictness affects only its plot, is sent to both analyses and 100 clears results', async ({ page }) => {
   await open(page); const first = plots(page).first(); await overallSwitch(first).check();
-  await page.getByRole('button', { name: 'Add Plot', exact: true }).click(); const second = plots(page).nth(1); await add(second, payment, 'token_enter');
+  await page.getByRole('button', { name: 'Add Plot', exact: true }).click(); const second = plots(page).nth(1); await add(second, payment, 'token_enter'); await expect(graphs(second)).toBeVisible();
   const seen: any[] = []; page.on('request', (r) => { if (r.url().endsWith('/trends/selection')) seen.push(r.postDataJSON()); });
   await strictness(first).fill('75');
   await expect.poll(async () => (await shapes(first)).map((s: any) => s.x0)).toEqual([stamp(7)]);
@@ -130,6 +134,7 @@ test('mixed raw units use separate panels, normalized display overlays and obser
 
 test('contributions use positive percentages, sorted pair labels and independently selected timestamps', async ({ page }) => {
   await open(page); const plot = plots(page).first(); await overallSwitch(plot).check();
+  await plot.getByTestId('overall-contributions').locator('summary').click();
   const chart = plot.getByTestId('contribution-chart').locator('.js-plotly-plot'); await expect(chart).toBeVisible();
   expect(await chart.evaluate((el: any) => el.data[0].x)).toEqual([75, 25]);
   const firstLabels = await chart.evaluate((el: any) => el.data[0].y);
@@ -175,7 +180,7 @@ test('changing the analysis resets plot identities/configuration and ignores old
   await page.route('**/api/analyses/other-analysis/drift*', (r) => r.fulfill({ json: { rows: [] } }));
   // Navigate through the app's analysis override; old plot settings must not survive.
   await page.goto('/?analysis=other-analysis#/trends'); await expect(plots(page)).toHaveCount(1);
-  await expect(plots(page).first().getByLabel('Plot title')).toHaveValue('Zone occupancy over time');
+  await expect(plots(page).first().getByRole('heading',{name:'Zone occupancy over time'})).toBeVisible();
 });
 
 test('real showcase and screenshots agree with exact-pair API at several strictness settings', async ({ page, request }, info) => {
@@ -191,7 +196,7 @@ test('real showcase and screenshots agree with exact-pair API at several strictn
   await strictness(plot).fill('50'); await expect.poll(() => localCount(plot)).toBeGreaterThan(0);
   await plot.screenshot({ path: info.outputPath('showcase-local-only.png'), animations: 'disabled' });
   await localSwitch(plot).uncheck(); await overallSwitch(plot).check();
-  await expect(plot.getByTestId('contribution-chart')).toBeVisible();
+  await plot.getByTestId('overall-contributions').locator('summary').click(); await expect(plot.getByTestId('contribution-chart')).toBeVisible();
   await plot.screenshot({ path: info.outputPath('showcase-overall-only.png'), animations: 'disabled' });
   await localSwitch(plot).check(); await expect.poll(() => localCount(plot)).toBeGreaterThan(0);
   await plot.screenshot({ path: info.outputPath('showcase-both.png'), animations: 'disabled' });
@@ -234,13 +239,14 @@ test('zero total jump produces no contribution bars or invented percentages', as
     return route.fulfill({ json: data });
   });
   await overallSwitch(plot).check();
-  await expect(plot.getByText('No measurable contribution for this boundary.')).toBeVisible();
+  await plot.getByTestId('overall-contributions').locator('summary').click(); await expect(plot.getByText('No measurable contribution for this boundary.')).toBeVisible();
   await expect(plot.getByTestId('contribution-chart')).toHaveCount(0);
 });
 
 test('solid lines and independent minimize/expand preserve plot state', async ({ page }) => {
   await open(page); const plot = plots(page).first(); await overallSwitch(plot).check();
   await expect.poll(async () => (await shapes(plot)).length).toBe(2);
+  await plot.getByTestId('overall-contributions').locator('summary').click();
   await plot.getByRole('combobox', { name: 'Contribution change-point time' }).selectOption(stamp(7));
   await page.getByRole('button', { name: 'Add Plot', exact: true }).click();
   const second = plots(page).nth(1);
@@ -252,15 +258,15 @@ test('solid lines and independent minimize/expand preserve plot state', async ({
   await expect(plot.getByTestId('series-data')).toHaveCount(0);
   await expect(plot.getByRole('columnheader', { name: 'clean-series index' })).toHaveCount(0);
   await expect(plot.getByText('Up to 10 positive contributions; all measured components appear in the table.')).toHaveCount(0);
-  await plot.getByRole('button', { name: 'Minimize details' }).click();
+  await plot.getByRole('button', { name: 'Hide plot settings' }).click();
   await expect(plot.getByRole('heading', { name: 'Zone occupancy over time' })).toBeVisible();
   await expect(graphs(plot)).toBeVisible();
   await expect(localSwitch(plot)).toBeHidden();
-  await expect(plot.getByTestId('detected-changes')).toBeHidden();
-  await expect(plot.getByTestId('overall-contributions')).toBeHidden();
-  await expect(second.getByLabel('Plot title')).toBeVisible();
+  await expect(plot.getByTestId('detected-changes')).toBeVisible();
+  await expect(plot.getByTestId('overall-contributions')).toBeVisible();
+  await expect(second.getByRole('button',{name:'Edit plot settings'})).toBeVisible();
   expect(await graphs(plot).evaluate((el: any) => ({ data: el.data, shapes: el.layout.shapes }))).toEqual(before);
-  await plot.getByRole('button', { name: 'Expand details' }).click();
+  await plot.getByRole('button', { name: 'Edit plot settings' }).click();
   await expect(overallSwitch(plot)).toBeChecked();
   await expect(plot.getByRole('combobox', { name: 'Contribution change-point time' })).toHaveValue(stamp(7));
   await expect(plot.getByTestId('detected-changes')).toBeVisible();

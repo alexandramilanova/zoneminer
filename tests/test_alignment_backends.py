@@ -154,3 +154,22 @@ class TestAlignmentBackendParity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AlignmentBatchConfigurationTests(unittest.TestCase):
+    def test_configured_batches_keep_optimal_costs_and_valid_replay(self):
+        from unittest.mock import patch
+        from process_model.alignment_backends import compute_alignments, variant_batch_size
+        from process_model.replay import token_place_table_from_alignments
+        bundle, _ = _load_demo()
+        with patch.dict(os.environ, {'ZONE_ANALYTICS_ALIGNMENT_BATCH_SIZE': '64'}):
+            reference = compute_alignments(bundle.log, bundle.net, bundle.im, bundle.fm, backend='r4pm')
+        with patch.dict(os.environ, {'ZONE_ANALYTICS_ALIGNMENT_BATCH_SIZE': '1'}):
+            bounded = compute_alignments(bundle.log, bundle.net, bundle.im, bundle.fm, backend='r4pm')
+        self.assertEqual([x['cost'] for x in reference], [x['cost'] for x in bounded])
+        self.assertEqual([x['fitness'] for x in reference], [x['fitness'] for x in bounded])
+        self.assertFalse(token_place_table_from_alignments(bundle.log, bundle.net, bundle.im, bundle.fm, aligned=bounded).empty)
+        for invalid in ('0', '-1', '1025', 'bad'):
+            with patch.dict(os.environ, {'ZONE_ANALYTICS_ALIGNMENT_BATCH_SIZE': invalid}):
+                with self.assertRaises(ValueError):
+                    variant_batch_size()

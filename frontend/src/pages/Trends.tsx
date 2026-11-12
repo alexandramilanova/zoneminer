@@ -45,9 +45,9 @@ function ComparePanel({ catalog }: { catalog: MetricCatalog }) {
       <h2>Compare two periods</h2>
       <p className="help">
         Slice the timeline into "before" and "after" (e.g. around a change point) and compare
-        every zone metric between the slices. Significance is Welch's t-test with
-        false-discovery-rate control across all the comparisons at once — "beyond window noise",
-        not "important" and never "why". This comparison covers all zones and metrics, independently of the selection above.
+        every zone metric between the slices. The statistical check allows for testing many
+        comparisons at once. Passing it suggests evidence of a difference; it does not
+        measure practical importance or explain a cause. This comparison covers all zones and metrics, independently of the selection above.
       </p>
       <div className="row" style={{ marginBottom: 8 }}>
         <span className="help">Period A</span>
@@ -88,7 +88,7 @@ function ComparePanel({ catalog }: { catalog: MetricCatalog }) {
                 significant: (v) => {
                   const r = v as (typeof result.rows)[number];
                   return r.significant ? (
-                    <span className="badge warn">beyond noise (FDR 5%)</span>
+                    <span className="badge warn">Passes statistical check</span>
                   ) : (
                     <span className="help">–</span>
                   );

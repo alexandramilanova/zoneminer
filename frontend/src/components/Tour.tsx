@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAppState } from "../state";
 
 const STEPS: { route: string; title: string; text: string }[] = [
   {
     route: "/",
     title: "Data, model & zones",
-    text: "Upload an event log and a Petri net, or discover a model from the log. Define zones by selecting model places, validate the configuration, choose a time window, and run the analysis. Example scenarios are optional starting points.",
+    text: "Upload an event log and a Petri net, or discover a model from the log. Choose a discovery noise threshold for log-only uploads. Use the zone snapshot to select a zone, then click model places to edit it. Validate the configuration, choose a time window, and run the analysis. Example scenarios are optional starting points.",
   },
   {
     route: "/overview",
@@ -23,7 +24,7 @@ const STEPS: { route: string; title: string; text: string }[] = [
   {
     route: "/trends",
     title: "Trends & change points",
-    text: "Plot selected zone metrics over time and inspect vertical change-point markers. Local changes describe individual series; overall changes combine selected components. Drift scores and period comparisons provide separate views of changing behavior, without identifying causes.",
+    text: "Expand plot settings to choose series, displayed as readable zone and metric cards. Expand Detected changes to inspect the results. Local changes describe individual series; overall changes combine selected components. Drift scores and period comparisons provide separate views of changing behavior, without identifying causes.",
   },
   {
     route: "/flow",
@@ -33,7 +34,7 @@ const STEPS: { route: string; title: string; text: string }[] = [
   {
     route: "/dependencies",
     title: "Dependencies",
-    text: "Look for zone metrics that move together with a delay. Inspect the correlation, lag, available windows and significance together. These are associations, not evidence that one zone causes a change in another.",
+    text: "Look for zone metrics that move together with a delay. Inspect the correlation, lag, paired windows out of the full timeline, and statistical checks together. These are associations, not evidence that one zone causes a change in another.",
   },
   {
     route: "/prediction",
@@ -51,6 +52,8 @@ const STEPS: { route: string; title: string; text: string }[] = [
 // browser top layer; when a native modal opens, host it inside that modal so
 // its focus/inertness rules continue to apply. No backdrop blocks page controls.
 export default function Tour() {
+  const { analysis, workspaceDirty } = useAppState();
+  const previewMode = !analysis?.has_artifacts || workspaceDirty;
   const [step, setStep] = useState<number | null>(null);
   const [host, setHost] = useState<HTMLElement>(document.body);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
@@ -76,7 +79,9 @@ export default function Tour() {
 
   const go = (i: number) => {
     setStep(i);
-    navigate(STEPS[i].route);
+    // Before analysis, keep the setup mounted so a preview never discards
+    // an uploaded log or an unfinished zone draft.
+    if (!previewMode) navigate(STEPS[i].route);
   };
 
   useEffect(() => {
@@ -134,12 +139,12 @@ export default function Tour() {
   }, [open, host, step]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || previewMode) return;
     // Keep the route and step in agreement on browser Back or sidebar navigation.
     const matching = STEPS.findIndex((s) => s.route === location.pathname);
     if (matching >= 0) setStep(matching);
     else close();
-  }, [location.pathname, open, close]);
+  }, [location.pathname, open, close, previewMode]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -214,6 +219,7 @@ export default function Tour() {
         <div ref={tooltip} className="tour-tooltip" role="dialog" aria-modal="false" aria-labelledby="tour-title" aria-describedby="tour-description" style={position}>
           <div className="help" aria-live="polite">Step {step! + 1} / {STEPS.length}</div>
           <h2 id="tour-title">{s.title}</h2>
+          {previewMode && <p className="notice" data-testid="tour-preview">Preview tour · Explore the tool while keeping your current setup in place. An event log is enough; a model is optional. Run an analysis to inspect results for this setup.</p>}
           <p id="tour-description">{s.text}</p>
           {host !== document.body && <p className="help">Close the open dialog to return to this page.</p>}
           <div className="row">

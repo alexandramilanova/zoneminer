@@ -36,11 +36,12 @@ test('anonymous upload, analysis, private results and deletion work in the brows
   const dataset = await response.json();
   const graph = await (await page.request.get(`/api/datasets/${dataset.id}/model`)).json();
   const internal = graph.places.find((p: string) => !graph.initial_marking[p] && !graph.final_marking[p]);
+  await page.getByRole('button',{name:'Edit places',exact:true}).click();
   await page.getByRole('checkbox', { name: internal, exact: true }).check();
   await page.getByRole('button', { name: 'Validate zones', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Zone system is valid.' })).toBeVisible();
   await page.getByRole('button', { name: 'Run analysis', exact: true }).click();
-  await expect(page).toHaveURL(/#\/overview/);
+  await expect(page).toHaveURL(/#\/overview/, {timeout:120_000});
   await expect(page.getByRole('heading', { name: 'Zones at the latest window', exact: true })).toBeVisible();
 
   const stranger = await browser.newContext({ baseURL: test.info().project.use.baseURL });

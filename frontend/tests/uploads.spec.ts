@@ -34,7 +34,7 @@ test('out-of-order upload discovers a model and completes validated analysis', a
   expect(model.model_source).toBe('discovered_from_log');
   const internalPlace = model.places.find((p: string) => !model.initial_marking[p] && !model.final_marking[p]);
   expect(internalPlace).toBeTruthy();
-  // Newly uploaded, empty zones already expose their place checkboxes.
+  await page.getByRole('button', {name:'Edit places',exact:true}).click();
   await page.getByRole('checkbox', { name: internalPlace, exact: true }).check();
   await page.getByRole('button', { name: 'Validate zones', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Zone system is valid.' })).toBeVisible();

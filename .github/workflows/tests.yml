@@ -24,6 +24,35 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Parity gate (oracle vs API vs r4pm)
         run: python tools/parity_gate.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build browser test application
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          npx playwright install --with-deps chromium
+      - name: Start isolated browser test API
+        run: |
+          ZONE_ANALYTICS_DATA_DIR="$RUNNER_TEMP/zoneminer-e2e" uvicorn backend.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/zoneminer-api.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8000/api/health; then break; fi
+            sleep 1
+          done
+          curl --fail http://127.0.0.1:8000/api/health
+      - name: Browser regression tests
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8000
+        run: npm run test:e2e -- --project=chromium
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-details
+          path: frontend/test-results
 
   frontend:
     runs-on: ubuntu-latest
@@ -39,3 +68,4 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run build
+          node --test tests/replay-index.test.mjs tests/request-queue.test.mjs

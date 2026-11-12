@@ -69,6 +69,7 @@ def load_model_inputs(
     log_bytes: bytes,
     log_suffix: str,
     pnml_bytes: Optional[bytes],
+    noise_threshold: float = 0.0,
 ) -> ModelBundle:
     """Load the event log and obtain a Petri net (uploaded PNML or discovered).
 
@@ -118,7 +119,7 @@ def load_model_inputs(
                 except Exception:
                     bpmn_notice = "BPMN could not be generated for this model. Use the Petri net to inspect and define zones."
         else:
-            process_tree = discover_process_tree_from_log(log)
+            process_tree = discover_process_tree_from_log(log, noise_threshold=noise_threshold)
             net, im, fm = petri_net_from_process_tree(process_tree)
             try:
                 bpmn_graph = bpmn_from_process_tree(process_tree)

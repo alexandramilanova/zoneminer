@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 legacy = ["streamlit"]
-dev = ["httpx"]
+dev = ["httpx", "httpx2"]
 
 [project.urls]
 Repository = "https://github.com/alexandramilanova/zoneminer"

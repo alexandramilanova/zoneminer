@@ -64,6 +64,7 @@ for (const tf of ['D', 'h']) {
     });
     await page.goto('/#/trends');
     const plot = page.getByTestId('configured-plot').first();
+    await plot.getByRole('button',{name:'Edit plot settings',exact:true}).click();
     await expect(plot.getByTestId('selected-pairs').getByRole('button')).toHaveCount(5);
     while (await plot.getByTestId('selected-pairs').getByRole('button').count()) await plot.getByTestId('selected-pairs').getByRole('button').first().click();
     await plot.getByRole('combobox', { name: 'Metric', exact: true }).selectOption('token_avg_duration_completed');

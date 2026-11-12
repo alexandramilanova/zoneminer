@@ -82,6 +82,9 @@ export interface Dataset {
 }
 
 export interface ModelGraph {
+  discovery_noise_threshold?: number | null;
+  case_count?: number;
+  event_count?: number;
   places: string[];
   transitions: { name: string; label: string | null }[];
   arcs: { source: string; target: string; weight: number }[];
@@ -381,7 +384,7 @@ async function allIntervalPages<T>(url: string, signal?: AbortSignal, onProgress
   let offset = 0;
   let total: number | undefined;
   do {
-    const page = await req<IntervalPage<T>>(`${url}?offset=${offset}`, { signal });
+    const page = await req<IntervalPage<T>>(`${url}${url.includes("?") ? "&" : "?"}offset=${offset}`, { signal });
     if (!Number.isSafeInteger(page.total_count) || page.total_count < 0 ||
         page.offset !== offset || page.row_count !== page.rows.length ||
         (total !== undefined && page.total_count !== total) ||
@@ -407,13 +410,18 @@ export const api = {
   demo: () => req<DemoInfo>("/api/demo"),
   examples: () => req<{ examples: ExampleScenario[] }>("/api/examples"),
   datasets: () => req<Dataset[]>("/api/datasets"),
-  uploadDataset: (log: File, pnml: File | null) => {
+  uploadDataset: (log: File, pnml: File | null, noiseThreshold = 0) => {
     const form = new FormData();
     form.append("log", log);
     if (pnml) form.append("pnml", pnml);
+    if (!pnml) form.append("noise_threshold", String(noiseThreshold));
     return req<Dataset>("/api/datasets", { method: "POST", body: form });
   },
   modelGraph: (datasetId: string) => req<ModelGraph>(`/api/datasets/${datasetId}/model`),
+  rediscover: (datasetId: string, noiseThreshold: number) => req<Dataset>(`/api/datasets/${datasetId}/discover`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ noise_threshold: noiseThreshold }),
+  }),
   validateZones: (datasetId: string, zones: ZoneDraft[] | Record<string, string[]>) =>
     req<ZoneValidation>(`/api/datasets/${datasetId}/zones/validate`, {
       method: "POST",
@@ -490,6 +498,8 @@ export const api = {
     allIntervalPages<Record<string, unknown>>(`/api/analyses/${id}/token-intervals`, signal, onProgress),
   zoneStays: (id: string, signal?: AbortSignal) =>
     allIntervalPages<ZoneStay>(`/api/analyses/${id}/zone-stays`, signal),
+  caseStays: (id: string, caseId: string, signal?: AbortSignal) =>
+    allIntervalPages<ZoneStay>(`/api/analyses/${id}/zone-stays?case_id=${encodeURIComponent(caseId)}`, signal),
   queueing: (id: string) =>
     req<{ note: string; zones: QueueingZoneProfile[] }>(`/api/analyses/${id}/queueing`),
   handovers: (id: string, periods?: number) =>

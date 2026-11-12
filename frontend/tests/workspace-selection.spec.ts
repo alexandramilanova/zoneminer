@@ -30,6 +30,7 @@ test('late previous-analysis metadata cannot replace a new upload', async ({ pag
   const metadata = page.waitForResponse(r => r.url().endsWith('/api/analyses/previous'));
   await page.getByRole('button', { name: 'Upload', exact: true }).click();
   await metadata;
+  await page.getByRole('button',{name:'Edit places',exact:true}).click();
   await expect(page.getByRole('checkbox', { name: 'new_place', exact: true })).toBeVisible();
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await expect(page.getByRole('checkbox', { name: 'old_place', exact: true })).toHaveCount(0);

@@ -23,6 +23,8 @@ interface AppState {
   analysisId: string | null;
   analysis: AnalysisMeta | null;
   analysisError: string | null;
+  workspaceDirty: boolean;
+  setWorkspaceDirty: (dirty: boolean) => void;
   setAnalysisId: (id: string | null) => void;
   zoneColor: (zone: string) => string;
   zones: string[];
@@ -33,6 +35,7 @@ const Ctx = createContext<AppState | null>(null);
 const ZONE_SLOTS = 8;
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
+  const [workspaceDirty, setWorkspaceDirty] = useState(false);
   const [analysisId, setAnalysisIdRaw] = useState<string | null>(() => {
     // shareable/demo links: ?analysis=<id> overrides the stored selection
     const fromUrl = new URLSearchParams(window.location.search).get("analysis");
@@ -71,8 +74,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ analysisId, analysis, analysisError: error, setAnalysisId, zoneColor, zones }),
-    [analysisId, analysis, error, setAnalysisId, zoneColor, zones],
+    () => ({ analysisId, analysis, analysisError: error, setAnalysisId, zoneColor, zones, workspaceDirty, setWorkspaceDirty }),
+    [analysisId, analysis, error, setAnalysisId, zoneColor, zones, workspaceDirty],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

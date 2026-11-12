@@ -46,16 +46,19 @@ test('edit, invalidate, revalidate and run the actual Docker analysis', async ({
 test('duplicate and blank drafts remain visible and are rejected without data loss', async ({ page }) => {
   const first = page.getByRole('textbox', { name: 'Zone 1 name', exact: true });
   const second = page.getByRole('textbox', { name: 'Zone 2 name', exact: true });
-  await first.fill(await second.inputValue());
+  await page.getByRole('combobox', { name: 'Active zone', exact: true }).selectOption('1');
+  const secondName = await second.inputValue();
+  await page.getByRole('combobox', { name: 'Active zone', exact: true }).selectOption('0');
+  await first.fill(secondName);
   await validate(page).click();
   await expect(status(page)).toContainText('invalid.');
   await expect(page.getByText(/Duplicate names found/)).toBeVisible();
-  await expect(page.getByRole('textbox')).toHaveCount(5);
+  await expect(page.getByRole('textbox')).toHaveCount(1);
   await first.fill(' ');
   await validate(page).click();
   await expect(page.getByText(/Zone names cannot be empty/)).toBeVisible();
   await expect(first).toHaveValue(' ');
-  await expect(page.getByRole('textbox')).toHaveCount(5);
+  await expect(page.getByRole('textbox')).toHaveCount(1);
   await expect(run(page)).toBeDisabled();
 });
 
@@ -248,6 +251,7 @@ test('unknown restored places remain visible and can be corrected', async ({ pag
     await route.fulfill({ response, json: body });
   });
   await page.reload();
+  await expect(page.locator('.zone-snapshot-summary')).toContainText('1 unknown place IDs');
   await page.getByRole('button', { name: 'Edit places', exact: true }).first().click();
   const missing = page.getByRole('checkbox', { name: 'missing-place (not in model)', exact: true });
   await expect(missing).toBeChecked();
@@ -267,5 +271,5 @@ test('validation transport errors clear old success and cannot enable Run', asyn
   await expect(validate(page)).toBeEnabled();
   await expect(status(page)).toContainText('not validated');
   await expect(run(page)).toBeDisabled();
-  await expect(page.getByRole('textbox')).toHaveCount(5);
+  await expect(page.getByRole('textbox')).toHaveCount(1);
 });

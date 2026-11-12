@@ -9,7 +9,7 @@
 import { useMemo } from "react";
 import type { BottleneckState, HandoverPair } from "../api";
 import { useAppState } from "../state";
-import { resolveColor } from "../lib/plot";
+import { resolveColor } from "../lib/plotTheme";
 import { STATE_STYLE } from "../lib/states";
 
 const W = 860;

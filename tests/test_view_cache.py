@@ -71,3 +71,23 @@ class ViewCacheTests(unittest.TestCase):
                     self.assertEqual(caught.exception.status_code, 429)
             finally:
                 config.WORKSPACE.reset(context)
+
+    def test_local_views_reuse_results_and_invalidate_on_parameters_or_frame_change(self):
+        calls = []
+        def selected_trends(analysis_id, body=None):
+            calls.append(body)
+            return {"rows": [len(calls)]}
+        with tempfile.TemporaryDirectory() as root, patch.object(config, "DATA_DIR", root), \
+                patch.object(config, "data_dir", return_value=root):
+            directory = Path(root) / "analyses" / "local"
+            directory.mkdir(parents=True)
+            frame = directory / "zone_features.parquet"
+            frame.write_bytes(b"first")
+            wrapped = isolation.endpoint(selected_trends)
+            with patch.object(isolation, "run", side_effect=AssertionError("Local cache started a worker")):
+                self.assertEqual(wrapped("local"), {"rows": [1]})
+                self.assertEqual(wrapped("local"), {"rows": [1]})
+                self.assertEqual(wrapped("local", {"metric": "other"}), {"rows": [2]})
+                frame.write_bytes(b"different content")
+                self.assertEqual(wrapped("local"), {"rows": [3]})
+            self.assertEqual(calls, [None, {"metric": "other"}, None])

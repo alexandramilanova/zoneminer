@@ -102,11 +102,20 @@ def _safe_id(identifier: str) -> str:
     return identifier
 
 
-def dataset_id_for(log_bytes: bytes, pnml_bytes: Optional[bytes]) -> str:
+def discovery_identity_suffix(noise_threshold: float) -> bytes:
+    """Keep legacy identities at zero; settings distinguish immutable models."""
+    if not 0 <= noise_threshold <= 1:
+        raise ValueError("Discovery noise threshold must be between 0 and 1")
+    return (b"\x00discovery-noise-v1:" + str(float(noise_threshold)).encode()
+            if noise_threshold else b"")
+
+
+def dataset_id_for(log_bytes: bytes, pnml_bytes: Optional[bytes], noise_threshold: float = 0.0) -> str:
     h = hashlib.sha256()
     h.update(log_bytes)
     h.update(b"\x00")
     h.update(pnml_bytes or b"")
+    h.update(discovery_identity_suffix(noise_threshold))
     return h.hexdigest()[:16]
 
 
@@ -127,6 +136,23 @@ def analysis_id_for(dataset_id: str, zone_places: dict, timeframe: str, backend:
 
 def dataset_dir(dataset_id: str) -> str:
     return os.path.join(config.data_dir(), "datasets", _safe_id(dataset_id))
+
+
+def discovery_threshold(dataset_id: str) -> float:
+    path = os.path.join(dataset_dir(dataset_id), "discovery.json")
+    if not os.path.exists(path):
+        return 0.0
+    with open(path) as stream:
+        value = float(json.load(stream)["noise_threshold"])
+    discovery_identity_suffix(value)
+    return value
+
+
+def save_discovery_threshold(dataset_id: str, noise_threshold: float) -> None:
+    discovery_identity_suffix(noise_threshold)
+    if noise_threshold:
+        with open(os.path.join(dataset_dir(dataset_id), "discovery.json"), "w") as stream:
+            json.dump({"noise_threshold": noise_threshold}, stream)
 
 
 def save_dataset(
@@ -304,11 +330,12 @@ def save_frame(analysis_id: str, name: str, df: pd.DataFrame) -> None:
     d = analysis_dir(analysis_id)
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, f"{_safe_id(name)}.parquet").replace("\\", "/").replace("'", "''")
-    with _access():
-        con = _connect()
+    with _access(), _connect().cursor() as con:
         con.register("df_out", df)
-        con.execute(f"COPY df_out TO '{path}' (FORMAT PARQUET)")
-        con.unregister("df_out")
+        try:
+            con.execute(f"COPY df_out TO '{path}' (FORMAT PARQUET)").fetchall()
+        finally:
+            con.unregister("df_out")
     from backend.sessions import check_storage
     try:
         check_storage()
@@ -321,25 +348,44 @@ def load_frame(analysis_id: str, name: str) -> Optional[pd.DataFrame]:
     path = os.path.join(analysis_dir(analysis_id), f"{_safe_id(name)}.parquet").replace("\\", "/")
     if not os.path.exists(path):
         return None
-    with _access():
-        con = _connect()
+    # A relation owns its Arrow result. Use a separate cursor so metadata
+    # queries that fetched one row on the shared DB-API connection cannot
+    # leave an unfinished result in the way of this read.
+    with _access(), _connect().cursor() as con:
         # Arrow avoids DuckDB's deprecated pandas inplace conversion path.
-        return con.execute("SELECT * FROM read_parquet(?)", [path]).to_arrow_table().to_pandas()
+        return con.sql("SELECT * FROM read_parquet(?)", params=[path]).to_arrow_table().to_pandas()
 
 
-def load_frame_page(analysis_id: str, name: str, offset: int, limit: int) -> Optional[tuple[pd.DataFrame, int]]:
+def load_frame_page(analysis_id: str, name: str, offset: int, limit: int,
+                    *, case_id: str | None = None, zones: list[str] | None = None) -> Optional[tuple[pd.DataFrame, int]]:
     """Read a bounded page in persisted row order without materializing the full frame."""
     path = os.path.join(analysis_dir(analysis_id), f"{_safe_id(name)}.parquet")
     if not os.path.exists(path):
         return None
-    with _access():
-        con = _connect()
-        total = con.execute("SELECT count(*) FROM read_parquet(?)", [path]).fetchone()[0]
-        page = con.execute(
-            "SELECT * EXCLUDE (file_row_number) FROM read_parquet(?, file_row_number=true) "
-            "WHERE file_row_number >= ? AND file_row_number < ? ORDER BY file_row_number",
-            [path, offset, offset + limit],
-        ).to_arrow_table().to_pandas()
+    # A relation owns its Arrow result. Use a separate cursor so metadata
+    # queries that fetched one row on the shared DB-API connection cannot
+    # leave an unfinished result in the way of this read.
+    with _access(), _connect().cursor() as con:
+        filters, arguments = [], [path]
+        if case_id is not None:
+            filters.append("CAST(case_id AS VARCHAR) = ?")
+            arguments.append(case_id)
+        if zones:
+            filters.append("zone IN (" + ",".join("?" for _ in zones) + ")")
+            arguments.extend(zones)
+        where = " WHERE " + " AND ".join(filters) if filters else ""
+        total = con.execute("SELECT count(*) FROM read_parquet(?)" + where, arguments).fetchall()[0][0]
+        if filters:
+            page = con.sql(
+                "SELECT * EXCLUDE (file_row_number) FROM read_parquet(?, file_row_number=true)" + where +
+                " ORDER BY file_row_number LIMIT ? OFFSET ?", params=[*arguments, limit, offset],
+            ).to_arrow_table().to_pandas()
+        else:
+            page = con.sql(
+                "SELECT * EXCLUDE (file_row_number) FROM read_parquet(?, file_row_number=true) "
+                "WHERE file_row_number >= ? AND file_row_number < ? ORDER BY file_row_number",
+                params=[path, offset, offset + limit],
+            ).to_arrow_table().to_pandas()
         return page, total
 
 

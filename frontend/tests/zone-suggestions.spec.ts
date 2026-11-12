@@ -15,8 +15,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/#/');
   await expect(zone(page, 1)).toBeVisible();
 });
-const zone = (page: Page, n: number) => page.getByRole('group', { name: `Zone ${n} configuration`, exact: true });
+const zone = (page: Page, n: number) => page.locator(`[aria-label="Zone ${n} configuration"]`);
+async function selectZone(page: Page, n: number) { await page.getByRole('combobox', { name: 'Active zone', exact: true }).selectOption(String(n - 1)); }
 async function openSuggestions(card: Locator) {
+  const name = await card.getAttribute('aria-label');
+  await selectZone(card.page(), Number(name!.match(/Zone (\d+)/)![1]));
   await card.locator('summary').click();
   return card;
 }
@@ -25,7 +28,7 @@ const results = (card: Locator) => card.getByRole('group', { name: 'Suggested pl
 const apply = (card: Locator) => card.getByRole('button', { name: 'Apply selected places to zone', exact: true });
 
 test('every existing and newly added zone can request real activity-based suggestions', async ({ page }) => {
-  await expect(page.locator('summary').filter({ hasText: 'Suggest places from activity names' })).toHaveCount(5);
+  await expect(page.locator('summary').filter({ hasText: 'Suggest places from activity names', visible: true })).toHaveCount(1);
   await page.getByRole('button', { name: '+ Add zone', exact: true }).click();
   for (let n = 1; n <= 6; n++) {
     const card = await openSuggestions(zone(page, n));
@@ -45,12 +48,18 @@ test('every existing and newly added zone can request real activity-based sugges
 test('activity selection is independent between zones', async ({ page }) => {
   const first = await openSuggestions(zone(page, 1));
   const second = await openSuggestions(zone(page, 2));
+  await selectZone(page, 1);
   await first.getByRole('checkbox', { name: 'A1_View_Product', exact: true }).check();
+  await selectZone(page, 2);
   await second.getByRole('checkbox', { name: 'B1_Initiate_Payment', exact: true }).check();
+  await selectZone(page, 1);
   await expect(first.getByRole('checkbox', { name: 'B1_Initiate_Payment', exact: true })).not.toBeChecked();
+  await selectZone(page, 2);
   await expect(second.getByRole('checkbox', { name: 'A1_View_Product', exact: true })).not.toBeChecked();
-  await page.getByRole('button', { name: /^Fulfillment \(/ }).click();
+  await selectZone(page, 3);
+  await selectZone(page, 1);
   await expect(first.getByRole('checkbox', { name: 'A1_View_Product', exact: true })).toBeChecked();
+  await selectZone(page, 2);
   await expect(second.getByRole('checkbox', { name: 'B1_Initiate_Payment', exact: true })).toBeChecked();
 });
 
@@ -65,7 +74,9 @@ test('selected suggestions apply only to the intended zone, preserve ownership a
   await results(card).getByRole('checkbox', { name: 'p_end', exact: true }).uncheck();
   await apply(card).click();
   await expect(card.getByText('7 place(s)', { exact: true })).toBeVisible();
+  await selectZone(page, 1);
   await expect(zone(page, 1).getByText('5 place(s)', { exact: true })).toBeVisible();
+  await selectZone(page, 2);
   await card.getByRole('button', { name: 'Edit places', exact: true }).click();
   await expect(card.getByRole('checkbox', { name: 'p_start', exact: true })).toBeChecked();
   await expect(card.getByRole('checkbox', { name: 'p_end', exact: true })).not.toBeChecked();
@@ -103,11 +114,13 @@ test('pending suggestions remain attached to their zone after another zone is re
   await card.getByRole('checkbox', { name: 'B1_Initiate_Payment', exact: true }).check();
   const sent = page.waitForRequest('**/zones/suggest');
   await suggest(card).click(); await sent;
+  await selectZone(page, 1);
   await zone(page, 1).getByTitle('Remove zone', { exact: true }).click();
   release();
   const moved = zone(page, 1);
   await expect(moved.getByRole('textbox')).toHaveValue('Payment & Risk');
   await expect(results(moved).getByRole('checkbox', { name: 'p_start', exact: true })).toBeVisible();
+  await selectZone(page, 2);
   await expect(results(zone(page, 2))).toHaveCount(0);
 });
 

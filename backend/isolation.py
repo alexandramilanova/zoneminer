@@ -72,6 +72,9 @@ def run(module: str, name: str, *args, timeout=_DEFAULT_TIMEOUT, progress=None, 
                    "ZONE_ANALYTICS_WORKER": "1", "ZONE_ANALYTICS_PROGRESS": str(events),
                    "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1",
                    "RAYON_NUM_THREADS": str(config.limit("NATIVE_THREADS", 1))}
+            # Smaller native batches bound isolated search work. Local execution
+            # keeps its throughput default, and explicit operator settings win.
+            env.setdefault("ZONE_ANALYTICS_ALIGNMENT_BATCH_SIZE", "8")
             seconds = config.optional_limit("REQUEST_TIMEOUT_SECONDS") if timeout is _DEFAULT_TIMEOUT else timeout
             lease = Path(root) / "session.json"
             if lease.exists():
@@ -148,14 +151,16 @@ def endpoint(function):
     """Run synchronous read/analysis endpoints in a bounded child in anonymous mode."""
     @functools.wraps(function)
     def wrapped(*args, **kwargs):
+        from backend import view_cache
+        path = view_cache.location(function, args, kwargs)
+        cached = view_cache.read(path)
+        if cached is not None:
+            return cached
         if config.data_dir() != config.DATA_DIR and not os.environ.get("ZONE_ANALYTICS_WORKER"):
-            from backend import view_cache
-            path = view_cache.location(function, args, kwargs)
-            cached = view_cache.read(path)
-            if cached is not None:
-                return cached
             return run(function.__module__, function.__name__, *args, cache_path=path, **kwargs)
-        return function(*args, **kwargs)
+        result = function(*args, **kwargs)
+        view_cache.write(path, result)
+        return result
     # FastAPI resolves annotations in the wrapper's module. Resolve postponed
     # annotations against the original endpoint module before wrapping it.
     wrapped.__signature__ = inspect.signature(function, eval_str=True)
@@ -174,6 +179,11 @@ def parse_dataset(dataset_id: str):
         raise HTTPException(413, "Event log exceeds the case or event limit.")
     if node_limit is not None and len(bundle.net.places) + len(bundle.net.transitions) > node_limit:
         raise HTTPException(413, "Process model exceeds the node limit.")
+    # Reuse the model loaded during upload, rather than parsing it again just
+    # to draw it in a fresh anonymous worker.
+    from backend.routers.datasets import get_model_graph
+    from backend import view_cache
+    view_cache.write(view_cache.location(get_model_graph, (dataset_id,), {}), get_model_graph(dataset_id))
     return {"cases": cases, "events": events}
 
 

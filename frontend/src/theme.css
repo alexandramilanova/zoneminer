@@ -462,3 +462,32 @@ table.data tbody tr:hover { background: color-mix(in oklab, var(--accent) 5%, tr
   box-shadow: 0 0 0 2px #14263f, 0 0 0 9999px #07132438;
   pointer-events: none;
 }
+
+/* Keep the active zone's controls within reach of the model. */
+.zone-toolbar { position: sticky; top: 0; z-index: 5; background: var(--surface); padding: 12px 0; border-bottom: 1px solid var(--grid); margin-bottom: 12px; }
+.zone-toolbar select { min-width: 220px; max-width: 100%; }
+.zone-workbench { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; align-items: start; }
+.zone-model { min-width: 0; position: sticky; top: 85px; }
+.zone-controls { min-width: 0; max-height: 540px; overflow-y: auto; }
+.zone-place-list { grid-template-columns: 1fr; max-height: 290px; overflow-y: auto; }
+@media (max-width: 1050px) {
+  .zone-workbench { grid-template-columns: minmax(0, 1fr); }
+  .zone-model { position: static; }
+  .zone-controls { max-height: none; }
+}
+
+.zone-snapshot, .series-selection { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 12px 0; }
+.zone-snapshot-summary { font-weight: 600; }
+.zone-snapshot-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; border-left: 4px solid; white-space: normal; }
+.zone-snapshot-card[aria-pressed="true"] { background: var(--surface-2); outline: 2px solid var(--accent); outline-offset: 1px; }
+.zone-snapshot-card span, .series-metric small { font-size: 12px; color: var(--text-2); }
+.series-selection-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.series-selection-card > .zone-chip { grid-column: 1; }
+.series-selection-card > button { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.series-metric { grid-column: 1; min-width: 0; font-weight: 500; }
+.series-metric small { display: block; margin-top: 4px; font-weight: 400; }
+
+.table-header-info { margin-left: 6px; cursor: help; color: var(--accent); font-size: 14px; text-transform: none; letter-spacing: normal; }
+
+.table-header-tooltip { position: fixed; z-index: 10000; pointer-events: none; box-sizing: border-box; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); box-shadow: 0 6px 24px #0003; font-size: 12px; font-weight: 400; line-height: 1.5; text-transform: none; letter-spacing: normal; }
+.table-header-info:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }

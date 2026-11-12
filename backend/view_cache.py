@@ -10,7 +10,7 @@ import tempfile
 from backend import config, store
 
 _VIEWS = {"get_changepoints", "get_selection_changepoints", "selected_trends",
-          "get_dependencies", "get_dependency_pair"}
+          "get_dependencies", "get_dependency_pair", "get_model_graph", "get_overview"}
 _MAX_BYTES = 32 * 1024 * 1024
 _MAX_ENTRY = 8 * 1024 * 1024
 _MAX_FILES = 64
@@ -31,14 +31,23 @@ def location(function, args, kwargs):
         return None
     bound = inspect.signature(function).bind(*args, **kwargs)
     bound.apply_defaults()
-    try:
-        frame = Path(store.analysis_dir(bound.arguments["analysis_id"])) / "zone_features.parquet"
-    except ValueError:
-        return None
-    if not frame.exists():
-        return None
-    stat = frame.stat()
-    specification = (_implementation(), function.__name__, stat.st_mtime_ns, stat.st_size,
+    if function.__name__ == "get_model_graph":
+        directory = Path(store.dataset_dir(bound.arguments["dataset_id"]))
+        sources = sorted(p for p in directory.iterdir() if p.name in {
+            "log.csv", "log.xes", "model.pnml", "discovered-chronological-v1.pnml", "discovery.json"
+        }) if directory.exists() else []
+        if not sources:
+            return None
+    else:
+        try:
+            frame = Path(store.analysis_dir(bound.arguments["analysis_id"])) / "zone_features.parquet"
+        except ValueError:
+            return None
+        if not frame.exists():
+            return None
+        sources = [frame]
+    stamps = [(p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in sources]
+    specification = (_implementation(), function.__name__, stamps,
                      {key: value.model_dump(mode="json") if hasattr(value, "model_dump") else value
                       for key, value in bound.arguments.items()})
     key = hashlib.sha256(json.dumps(specification, sort_keys=True).encode()).hexdigest()

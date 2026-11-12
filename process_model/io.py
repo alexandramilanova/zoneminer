@@ -90,8 +90,13 @@ def load_pnml(path: str) -> Tuple[PetriNet, Marking, Marking]:
     return net, im, fm
 
 
-def discover_process_tree_from_log(log):
-    return inductive_miner.apply(log)
+def discover_process_tree_from_log(log, noise_threshold: float = 0.0):
+    if not 0 <= noise_threshold <= 1:
+        raise ValueError("Discovery noise threshold must be between 0 and 1")
+    return inductive_miner.apply(
+        log, variant=inductive_miner.Variants.IMf if noise_threshold else inductive_miner.Variants.IM,
+        parameters={"noise_threshold": noise_threshold},
+    )
 
 
 def petri_net_from_process_tree(tree) -> tuple[Any, Any, Any]:

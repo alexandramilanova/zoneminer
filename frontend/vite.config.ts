@@ -8,9 +8,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          plotly: ["plotly.js-basic-dist-min"],
-          cytoscape: ["cytoscape", "cytoscape-dagre"],
+        manualChunks(id) {
+          // CommonJS helpers are also used by React. Letting Rollup place
+          // them in Plotly would make the entry point import the whole chart
+          // library even when only the upload/zone editor is displayed.
+          if (id.includes("commonjsHelpers")) return "commonjs";
+          if (id.includes("plotly.js-basic-dist-min")) return "plotly";
+          if (id.includes("/node_modules/cytoscape") || id.includes("/node_modules/@dagrejs/")) return "cytoscape";
         },
       },
     },

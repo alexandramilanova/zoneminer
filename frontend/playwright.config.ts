@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: 'anonymous.spec.ts',
+  testIgnore: ['anonymous.spec.ts', '**/*.test.mjs'],
   timeout: 60_000,
   expect: { timeout: 15_000 },
   workers: 1,

@@ -382,7 +382,7 @@ class ModelImportAndCacheIntegrationTests(unittest.TestCase):
     def test_model_graph_retains_arc_weights(self):
         from backend.routers.datasets import get_model_graph
         net, im, fm = weighted_net()
-        bundle = SimpleNamespace(net=net, im=im, fm=fm, process_tree=None,
+        bundle = SimpleNamespace(net=net, im=im, fm=fm, log=[], process_tree=None,
                                  model_source="uploaded_petri_net", model_notice=None)
         with patch("backend.routers.datasets.get_bundle", return_value=bundle):
             graph = get_model_graph("weighted")

@@ -12,7 +12,7 @@ import { formatDuration } from "../lib/metricPresentation";
 import { useMemo } from "react";
 import type { HandoverPair } from "../api";
 import { useAppState } from "../state";
-import { resolveColor } from "../lib/plot";
+import { resolveColor } from "../lib/plotTheme";
 
 const W = 640;
 const H = 340;

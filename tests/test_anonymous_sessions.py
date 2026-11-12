@@ -174,9 +174,30 @@ class AnonymousSessionsTests(unittest.TestCase):
                 break
             time.sleep(0.2)
         self.assertEqual(job["status"], "done", job)
+        with patch("backend.isolation.run", side_effect=AssertionError("Landing snapshot started another worker")):
+            snapshot = self.a.get(f'/api/analyses/{response.json()["analysis_id"]}/overview')
+            self.assertEqual(snapshot.status_code, 200, snapshot.text)
         result = self.a.get(f'/api/analyses/{response.json()["analysis_id"]}/features')
         self.assertEqual(result.status_code, 200, result.text)
         self.assertGreater(result.json()["row_count"], 0)
+
+    def test_upload_prewarms_private_model_graph_and_rediscovery_uses_a_new_identity(self):
+        uploaded = self.a.post('/api/datasets', files={'log': ('model.csv', CSV)})
+        self.assertEqual(uploaded.status_code, 200, uploaded.text)
+        identifier = uploaded.json()['id']
+        with patch('backend.isolation.run', side_effect=AssertionError('Warm graph started another worker')):
+            graph = self.a.get(f'/api/datasets/{identifier}/model')
+            self.assertEqual(graph.status_code, 200, graph.text)
+            self.assertEqual(graph.json()['discovery_noise_threshold'], 0)
+        discovered = self.a.post(f'/api/datasets/{identifier}/discover', json={'noise_threshold': .2})
+        self.assertEqual(discovered.status_code, 200, discovered.text)
+        next_id = discovered.json()['id']
+        self.assertNotEqual(identifier, next_id)
+        with patch('backend.isolation.run', side_effect=AssertionError('Rediscovered graph was not cached')):
+            graph = self.a.get(f'/api/datasets/{next_id}/model')
+            self.assertEqual(graph.status_code, 200, graph.text)
+            self.assertEqual(graph.json()['discovery_noise_threshold'], .2)
+        self.assertEqual(self.b.get(f'/api/datasets/{next_id}/model').status_code, 404)
 
 
 class TimestampConversionTests(unittest.TestCase):
@@ -195,7 +216,9 @@ class ResourceBoundaryTests(unittest.TestCase):
         from backend.isolation import parse_dataset
         from fastapi import HTTPException
         bundle = SimpleNamespace(log=[range(100001)], net=SimpleNamespace(places=range(2001), transitions=[]))
-        with patch("backend.runner.get_bundle", return_value=bundle):
+        with patch("backend.runner.get_bundle", return_value=bundle), \
+                patch("backend.routers.datasets.get_model_graph", return_value={}), \
+                patch("backend.view_cache.location", return_value=None):
             self.assertEqual(parse_dataset("large")["events"], 100001)
             with patch.dict(os.environ, {"ZONE_ANALYTICS_MAX_EVENTS": "100000"}):
                 with self.assertRaises(HTTPException) as caught:

@@ -12,6 +12,7 @@ import fcntl
 import threading
 from collections import OrderedDict
 from typing import Optional
+from weakref import WeakValueDictionary
 
 from backend import config, store
 from backend.jobs import Job
@@ -19,7 +20,7 @@ from services import build_zone_analysis, compute_alignment_tables, load_model_i
 from services.pipeline import ModelBundle
 
 _bundle_cache: OrderedDict[str, ModelBundle] = OrderedDict()
-_bundle_load_locks: dict[str, threading.Lock] = {}
+_bundle_load_locks: WeakValueDictionary = WeakValueDictionary()
 _MODEL_CACHE_SIZE = max(1, int(os.environ.get("ZONE_ANALYTICS_MODEL_CACHE_SIZE", "3")))
 _bundle_lock = threading.Lock()
 
@@ -62,7 +63,9 @@ def get_bundle(dataset_id: str) -> ModelBundle:
                     if bundle.model_notice:
                         bundle.model_notice = bundle.model_notice.replace("uploaded Petri net", "persisted discovered Petri net").replace("uploaded model", "persisted discovered model")
                 else:
-                    bundle = load_model_inputs(log_bytes, os.path.splitext(log_path)[1], None)
+                    threshold = store.discovery_threshold(dataset_id)
+                    bundle = load_model_inputs(log_bytes, os.path.splitext(log_path)[1], None,
+                                               **({"noise_threshold": threshold} if threshold else {}))
                     pnml_exporter.apply(bundle.net, bundle.im, discovered + ".tmp", final_marking=bundle.fm)
                     os.replace(discovered + ".tmp", discovered)
         else:
@@ -136,6 +139,14 @@ def run_analysis_job(
         emit("persist", "done")
 
         store.upsert_analysis(analysis_id, dataset_id, zone_places, timeframe, backend, "done")
+        # The first landing-page snapshot needs no new interpreter in private
+        # mode. Optional cache work must not invalidate completed artifacts.
+        try:
+            from backend.routers.analyses import get_overview
+            get_overview(analysis_id)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).debug("Overview cache prewarm skipped")
         return {"analysis_id": analysis_id}
     except Exception as exc:
         store.upsert_analysis(

@@ -1,9 +1,11 @@
 # Browser regression tests
 
-The request-admission queue also has browser-independent unit checks. From
-`frontend/`, run `node --test tests/request-queue.test.mjs` after `npm ci`.
-They check bounded FIFO admission, cancellation before a request starts, and
-capacity recovery after failures. These checks do not replace the browser suites
+Replay indexing and request admission have browser-independent unit checks.
+From `frontend/`, run
+`node --test tests/replay-index.test.mjs tests/request-queue.test.mjs` after
+`npm ci`. They check interval lookup and replay boundaries, bounded FIFO
+admission, cancellation before a request starts, and capacity recovery after
+failures. These checks do not replace the browser suites
 or a hosted deployment smoke test.
 
 `workspace-selection.spec.ts` delays previous-analysis metadata until an upload
@@ -71,7 +73,7 @@ Real-showcase screenshots include local-only, overall-only, both, multiple plots
 and contributions. Independent arithmetic and segmentation tests live in
 `tests/test_trend_selection.py`; legacy GET API/parity behavior is preserved.
 
-`prediction.spec.ts` tests the retrospective screen: all 43 metric
+`prediction.spec.ts` tests the retrospective screen: the available metric
 identifiers, fewer controls, explicit retrospective interpretation, fixed
 horizon, all three real classifiers, class counts, tree, SHAP, baseline verdicts,
 one-class errors, stale responses, and unchanged descriptive features. A
@@ -83,3 +85,15 @@ The deterministic workflow fixture is software evidence, not a benchmark.
 prospective research path. Its model/zone setup is no longer exposed in the
 Prediction screen. Independent retrospective scientific and API tests are in
 `tests/test_retrospective_prediction.py`; prospective tests remain separate.
+
+`usability-refinements.spec.ts` checks the empty-workspace preview tour, draft
+preservation during log-only and PNML upload tours, clickable zone coverage,
+closed-by-default disclosures, lazy secondary visualization rendering, grouped
+plot-setting requests, and dependency coverage with optional test details.
+
+The CI workflow builds the UI, runs browser-independent request/replay checks,
+and exercises Chromium against an isolated API after the analytical parity gate.
+Release validation additionally runs Firefox/WebKit and the anonymous suite.
+Hover help is checked for pointer entry/exit, keyboard focus, and Escape; the
+upload preview asserts that Plotly is deferred and that existing analysis
+metadata cannot cause a tour to discard a newly uploaded zone draft.

@@ -7,6 +7,7 @@ import { Plot, resolveColor, themedLayout } from "../lib/plot";
 import { DataTable, ZoneChip } from "./shared";
 import TrendChart, { pairKey, type BandRow, type TrendSeries } from "./TrendChart";
 import Heatmap from "./Heatmap";
+import Disclosure from "./Disclosure";
 import { downloadCsv } from "../lib/download";
 
 export interface TrendPlotConfig {
@@ -28,12 +29,15 @@ export default function ConfiguredTrendPlot({ config, catalog, onChange, onRemov
   const [zone, setZone] = useState(catalog.zones[0] ?? "");
   const [metric, setMetric] = useState("token_present_end");
   const [chosenTime, setChosenTime] = useState("");
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [sections, setSections] = useState<Record<string, boolean>>({});
+  const disclosure = (name: string) => ({ expanded: sections[name] ?? false,
+    onExpandedChange: (open: boolean) => setSections(previous => ({ ...previous, [name]: open })) });
   const patch = (update: Partial<TrendPlotConfig>) => onChange({ ...config, ...update });
   const request: TrendSelectionRequest = { pairs: config.pairs, normalize: config.normalize,
     local_enabled: config.local, overall_enabled: config.overall, cp_strictness: config.strictness };
   const key = config.pairs.length ? JSON.stringify([analysisId, config.id, request]) : null;
-  const response = useResult(key, () => api.selectedTrends(analysisId!, request));
+  const response = useResult(key, () => api.selectedTrends(analysisId!, request), 200);
   const data = response.status === "success" ? response.data : null;
   const duplicate = config.pairs.some((p) => p.zone === zone && p.metric === metric);
   const metadata = (name: string) => catalog.metrics.find((m) => m.name === name);
@@ -65,12 +69,13 @@ export default function ConfiguredTrendPlot({ config, catalog, onChange, onRemov
     <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
       {expanded ? <label>Plot title <input value={config.title} onChange={(e) => patch({ title: e.target.value })} style={{ minWidth: 200, fontWeight: 600 }} /></label> : <h2>{config.title || "Untitled trend plot"}</h2>}
       <div className="row">
-        <button aria-expanded={expanded} aria-controls={`${config.id}-controls ${config.id}-details`} onClick={() => setExpanded(!expanded)}>
-          {expanded ? "Minimize details" : "Expand details"}
+        <button aria-expanded={expanded} aria-controls={`${config.id}-controls`} onClick={() => setExpanded(!expanded)}>
+          {expanded ? "Hide plot settings" : "Edit plot settings"}
         </button>
         {expanded && <button onClick={onRemove}>Remove plot</button>}
       </div>
     </div>
+    <p className="help">{config.pairs.length} selected series across {new Set(config.pairs.map(p => p.zone)).size} zones · {config.normalize ? "Normalized" : "Original units"}</p>
     <div id={`${config.id}-controls`} hidden={!expanded}>
     <div className="row" style={{ marginTop: 14, gap: 12 }}>
       <label>Zone <select value={zone} onChange={(e) => setZone(e.target.value)}>{catalog.zones.map((z) => <option key={z}>{z}</option>)}</select></label>
@@ -79,11 +84,13 @@ export default function ConfiguredTrendPlot({ config, catalog, onChange, onRemov
       {duplicate && <span className="help">This zone–metric pair is already selected.</span>}
     </div>
     <p className="help">{metadata(metric)?.description} <code>{metric}</code> · {metadata(metric)?.unit_label}</p>
-    <div data-testid="selected-pairs" className="row" style={{ gap: 8, marginBottom: 12 }}>
-      {config.pairs.map((p) => <span key={pairKey(p.zone, p.metric)} className="badge" style={{ textTransform: "none", letterSpacing: "normal", whiteSpace: "normal" }}>
-        <ZoneChip zone={p.zone} /> · {metadata(p.metric)?.label ?? p.metric} ({metadata(p.metric)?.unit_label}){" "}
-        <button aria-label={`Remove ${p.zone} ${p.metric}`} onClick={() => patch({ pairs: config.pairs.filter((q) => pairKey(q.zone, q.metric) !== pairKey(p.zone, p.metric)) })}>×</button>
-      </span>)}
+    <h3>Selected series · {config.pairs.length}</h3>
+    <div data-testid="selected-pairs" className="series-selection">
+      {config.pairs.map((p) => <div key={pairKey(p.zone, p.metric)} className="series-selection-card">
+        <ZoneChip zone={p.zone} />
+        <span className="series-metric">{metadata(p.metric)?.label ?? p.metric}<small>{metadata(p.metric)?.unit_label}</small></span>
+        <button title="Remove series" aria-label={`Remove ${p.zone} ${p.metric}`} onClick={() => patch({ pairs: config.pairs.filter((q) => pairKey(q.zone, q.metric) !== pairKey(p.zone, p.metric)) })}>×</button>
+      </div>)}
     </div>
     <div className="row" style={{ gap: 16 }}>
       <label><input type="checkbox" checked={config.normalize} onChange={(e) => patch({ normalize: e.target.checked })} /> Normalize display</label>
@@ -118,7 +125,7 @@ export default function ConfiguredTrendPlot({ config, catalog, onChange, onRemov
             bands={!config.normalize ? bands?.filter((b) => keys.has(pairKey(b.zone, "case_avg_duration_completed"))) : undefined} />
         </div>;
       })}</div>
-      <div id={`${config.id}-details`} hidden={!expanded}>
+      <div id={`${config.id}-details`}>
       {wantsCi && <p className="help">Completed case-stay mean: shaded 95% confidence intervals where supported (seconds).</p>}
       {ci.status === "error" && <p role="alert">Confidence intervals unavailable: {ci.error}</p>}
       {data.series.filter((s) => s.status !== "usable").map((s) => <p className="help" key={pairKey(s.zone, s.metric)}>
@@ -130,21 +137,18 @@ export default function ConfiguredTrendPlot({ config, catalog, onChange, onRemov
       {overall?.status === "insufficient_observations" && <p>Insufficient observations in the overall signal.</p>}
       {overall?.status === "constant" && <p>The overall signal is constant; component changes can cancel. No overall boundaries detected.</p>}
       {overall?.status === "no_changes" && <p>No overall change points detected with these settings.</p>}
-      <div data-testid="detected-changes">
-        <h3>Detected changes</h3>
+      <Disclosure {...disclosure("detected-changes")} data-testid="detected-changes" summary={`Detected changes · ${detectedRows.length}`}>
         {detectedRows.length ? <div style={{ maxHeight: 360, overflowY: "auto" }}><DataTable rows={detectedRows} /></div>
           : <p>{!config.local && !config.overall ? "Change-point analysis disabled; trends only." : "No active change-point results."}</p>}
-      </div>
-      {overall && overall.signal.length > 0 && <details data-testid="overall-signal">
-        <summary>Inspect standardized overall signal</summary>
+      </Disclosure>
+      {overall && overall.signal.length > 0 && <Disclosure {...disclosure("overall-signal")} data-testid="overall-signal" summary="Inspect standardized overall signal">
         <p className="help">Mean of {overall.n_series} nonconstant standardized components (population SD). At missing windows, the mean uses available components without interpolation; the table reports coverage.</p>
         <TrendChart rows={overall.signal.map((r) => ({ ...r, zone: "Overall", metric: "aggregate" }))}
           series={[{ zone: "Overall", metric: "aggregate", label: "Mean standardized signal", unit: "z-score mean" }]}
           metricLabel="Mean standardized components" aggregateChangepoints={changes} observations={config.observations} />
         <DataTable rows={overall.signal} />
-      </details>}
-      {config.overall && changes.length > 0 && <div data-testid="overall-contributions">
-        <h3>Contribution to an overall change</h3>
+      </Disclosure>}
+      {config.overall && changes.length > 0 && <Disclosure {...disclosure("overall-contributions")} data-testid="overall-contributions" summary="Contribution to an overall change">
         <label>Contribution change-point time <select value={selectedTime} onChange={(e) => setChosenTime(e.target.value)}>
           {changes.map((cp) => <option key={cp.timestamp} value={cp.timestamp}>{cp.timestamp}</option>)}
         </select></label>
@@ -167,13 +171,13 @@ export default function ConfiguredTrendPlot({ config, catalog, onChange, onRemov
           "after mean (z-score)": c.after_mean, "absolute jump (z-score)": c.jump_score,
           "before start": c.before_start, "before end": c.before_end, "after start": c.after_start, "after end": c.after_end,
         }))} format={{ "contribution (%)": (v) => v == null || !Number.isFinite(Number(v)) ? "Unavailable" : `${Number(v).toFixed(2)}%` }} /></div>
-      </div>}
-      <details data-testid="plot-heatmaps" style={{ marginTop: 12 }}><summary>Zone × window heatmaps</summary>
+      </Disclosure>}
+      <Disclosure {...disclosure("plot-heatmaps")} data-testid="plot-heatmaps" style={{ marginTop: 12 }} summary="Zone × window heatmaps">
         {[...new Set(config.pairs.map((p) => p.metric))].map((m) => <div key={m}>
           <h3>{metadata(m)?.label} ({metricUnit(metadata(m), config.normalize)})</h3>
           <Heatmap rows={data.rows.filter((r) => r.metric === m)} zones={config.pairs.filter((p) => p.metric === m).map((p) => p.zone)} valueUnit={metricUnit(metadata(m), config.normalize)} />
         </div>)}
-      </details>
+      </Disclosure>
       </div>
     </>}
   </section>;

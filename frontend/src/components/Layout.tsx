@@ -123,7 +123,7 @@ export default function Layout() {
         <div className="foot">
           <div className="row" style={{ gap: 8 }}>
             <ThemeToggle />
-            {ready && <Tour />}
+            <Tour />
             <a href="/THIRD_PARTY_NOTICES.txt" target="_blank" rel="noreferrer">Licenses</a>
           </div>
         </div>

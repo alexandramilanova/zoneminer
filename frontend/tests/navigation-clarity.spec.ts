@@ -21,6 +21,7 @@ const pair = (src: string, target = 'token_avg_age_open') => ({ note: 'test', ro
 async function dependencies(page: Page) {
   await page.route('**/dependencies', r => r.fulfill({ json: { rows: [], note: '', metric_options: ['token_netflow', 'token_enter', 'token_avg_age_open', 'token_exit'] } }));
   await open(page, 'dependencies');
+  await page.getByText('Explore a specific pair of metrics',{exact:true}).click();
   await expect(page.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('token_netflow');
   await expect(page.getByRole('button', { name: 'Explore pair' })).toBeEnabled();
 }
@@ -59,11 +60,11 @@ test('an older pair response cannot overwrite the newer request', async ({ page 
   await expect(page.getByRole('status')).toContainText('Computing');
   await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption('token_enter');
   await run.click();
-  await expect(page.getByText('Results: token_enter', { exact: false })).toBeVisible();
+  await expect(page.getByText('Results: Token place productions', { exact: false })).toBeVisible();
   const oldResponse = page.waitForResponse(r => r.url().includes('/dependencies/pair?') && r.url().includes('src_metric=token_netflow'));
   release(); await oldResponse;
-  await expect(page.getByText('Results: token_enter', { exact: false })).toBeVisible();
-  await expect(page.getByText('Results: token_netflow', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('Results: Token place productions', { exact: false })).toBeVisible();
+  await expect(page.getByText('Results: Token netflow', { exact: false })).toHaveCount(0);
 });
 
 test('Flow patterns groups all seven sections into keyboard-accessible views', async ({ page }) => {
@@ -122,4 +123,15 @@ test('Reference coverage counts and sidebar footer are removed; tour is general 
   await tour.getByRole('button', { name: 'Finish', exact: true }).click();
   await expect(tour).toHaveCount(0);
   await screenshot(page, 'metrics-reference-clean');
+});
+
+
+test('Overview snapshot renders while the optional metric catalog is still pending', async ({page}) => {
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/metrics', async route => { await pending; await route.continue(); });
+  try {
+    await open(page, 'overview');
+    await expect(page.getByRole('heading', {name:'Zones at the latest window',exact:true})).toBeVisible();
+  } finally { release(); }
 });

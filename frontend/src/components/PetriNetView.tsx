@@ -11,7 +11,7 @@ import cytoscape, { type Core, type ElementDefinition } from "cytoscape";
 import dagre from "cytoscape-dagre";
 import { useEffect, useMemo, useRef } from "react";
 import type { BottleneckState, ModelGraph } from "../api";
-import { resolveColor } from "../lib/plot";
+import { resolveColor } from "../lib/plotTheme";
 import { STATE_STYLE } from "../lib/states";
 
 cytoscape.use(dagre);
@@ -42,6 +42,8 @@ export interface PetriNetViewProps {
    * state's color instead of the soft zone glow. */
   zoneStates?: Record<string, BottleneckState>;
   height?: number;
+  /** Editor navigation without changing place membership. */
+  selectedZone?: string;
 }
 
 export default function PetriNetView({
@@ -53,6 +55,7 @@ export default function PetriNetView({
   highlightZone,
   zoneStates,
   height = 420,
+  selectedZone,
 }: PetriNetViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
@@ -223,5 +226,17 @@ export default function PetriNetView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph.places, zoneOf, zoneColorOf, tokenCounts, highlightZone, zoneStates]);
 
-  return <div ref={containerRef} className="net-frame" style={{ height }} />;
+  return <div>
+    {onPlaceClick && <div className="row" style={{ marginBottom: 8 }}>
+      <button onClick={() => cyRef.current?.fit(undefined, 26)}>Fit model</button>
+      {selectedZone !== undefined && <button disabled={!selectedZone || !Object.values(zoneOf).includes(selectedZone)} onClick={() => {
+        const cy = cyRef.current;
+        if (!cy) return;
+        const places = cy.nodes().filter(node => node.data("kind") === "place" && zoneOf[node.id()] === selectedZone);
+        if (places.nonempty()) cy.fit(places.closedNeighborhood(), 45);
+      }}>Focus selected zone</button>}
+    </div>}
+    <div ref={containerRef} className="net-frame" style={{ height }} />
+  </div>;
+
 }

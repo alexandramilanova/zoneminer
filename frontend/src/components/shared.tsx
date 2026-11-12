@@ -1,7 +1,8 @@
 /** Small shared presentational components. */
 
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import HeaderHint from "./HeaderHint";
+import { Link, useLocation } from "react-router-dom";
 import { useAppState } from "../state";
 import type { JobEvent } from "../api";
 import { downloadCsv } from "../lib/download";
@@ -136,11 +137,13 @@ export function DataTable({
   columns,
   format,
   labels,
+  headerHelp,
   downloadName = "zone-analytics-table",
 }: {
   rows: Record<string, unknown>[];
   columns?: string[];
   labels?: Record<string, string>;
+  headerHelp?: Record<string, string>;
   format?: Record<string, (v: unknown, row: Record<string, unknown>) => ReactNode>;
   downloadName?: string;
 }) {
@@ -156,7 +159,10 @@ export function DataTable({
         <thead>
           <tr>
             {cols.map((c) => (
-              <th key={c}>{labels?.[c] ?? c.replaceAll("_", " ")}</th>
+              <th key={c}>
+                {labels?.[c] ?? c.replaceAll("_", " ")}
+                {headerHelp?.[c] && <HeaderHint label={labels?.[c] ?? c.replaceAll("_", " ")} text={headerHelp[c]} />}
+              </th>
             ))}
           </tr>
         </thead>
@@ -185,15 +191,26 @@ export function fmtCell(v: unknown): ReactNode {
 
 export function NeedsAnalysis({ children }: { children: ReactNode }) {
   const { analysis, analysisId, analysisError } = useAppState();
+  const { pathname } = useLocation();
+  const preview: Record<string, [string, string]> = {
+    "/overview": ["Overview & alerts", "See how much work is in each zone, recent alerts, and a map of flow between zones."],
+    "/replay": ["Token replay", "Play reconstructed token movement, inspect a historical moment, and follow a selected case through its zones."],
+    "/trends": ["Trends & change points", "Choose zone metrics to plot, inspect detected changes, and compare behavior across periods."],
+    "/flow": ["Flow patterns", "Explore waiting times, repeated visits, batching, overtaking, and handovers between zones."],
+    "/dependencies": ["Dependencies", "Find zone metrics that move together or in opposite directions, possibly with a delay. Inspect how many windows support each association."],
+    "/prediction": ["Prediction", "Compare models for a future-window condition using reconstructed history and inspect their retrospective evaluation."],
+  };
+  const introduction = preview[pathname];
   if (analysisId && !analysis) {
     return <p role={analysisError ? "alert" : "status"}>{analysisError ? `Unable to load analysis: ${analysisError}. Reload to try again.` : "Loading analysis…"}</p>;
   }
   if (!analysis?.has_artifacts) {
     return (
       <div className="panel">
+        {introduction && <><h1>{introduction[0]}</h1><p>{introduction[1]}</p></>}
         <h2>No analysis yet</h2>
         <p className="help">
-          Load the demo dataset or upload your own data first, then run an analysis.
+          Upload an event log; a Petri net is optional because ZoneMiner can discover a model. Define and validate zones, then run an analysis. You can also load an example scenario, or use the Tour to explore the tool before you start.
         </p>
         <Link to="/" className="btn">
           Go to Data, Model &amp; Zones
