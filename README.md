@@ -12,6 +12,8 @@ Developed at the Chair of Process and Data Science (PADS), RWTH Aachen Universit
 Docker is the simplest local installation; host Python and Node installations
 are not required. Get the image from [Docker Hub](https://hub.docker.com/r/alexandramilanova/zoneminer).
 
+The image supports ARM64 (including Apple Silicon) and AMD64 (Intel and AMD computers).
+
 ```sh
 docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zoneminer-data:/app/var alexandramilanova/zoneminer:latest
 ```
@@ -55,10 +57,12 @@ Four small bundled scenarios illustrate express-lane overtaking, batch dispatch,
 review and rework, and a capacity bottleneck. They are available in the workspace
 alongside the five-zone order-fulfillment demo.
 
+[Watch the tool screencast](https://youtu.be/kXSjLgR6VUk).
+
 ## Access and resources
 
-The submission uses the Docker installation described above. Difficult alignment problems can take substantial
-time and memory. There is no default fixed upload-size or event-count cap, but
+The submission uses the Docker installation described above. Difficult alignment
+problems can take substantial time and memory. There is no default fixed upload-size or event-count cap, but
 available resources limit what can finish.
 
 ## Public-log evaluation

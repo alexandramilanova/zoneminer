@@ -11,8 +11,9 @@ Run `sh tools/lock_dependencies.sh` with uv installed to regenerate locks while
 retaining existing pins. Pass `--upgrade` only for an intentional dependency
 update, then rerun backend tests, numerical parity and browser regressions.
 The universal lock contains platform markers; it does not establish that every
-Python version and operating system works. Python 3.12/Linux ARM64 is the current
-container verification environment. Frontend installations use `npm ci` and
+Python version and operating system works. Evaluation runs used Python 3.12 on
+Linux ARM64; the published image also includes a Linux AMD64 build, tested by
+opening the application and loading the demo on a Windows AMD laptop. Frontend installations use `npm ci` and
 the committed package-lock. Docker base images still use mutable major/minor
 tags: preserve a verified image digest for a release, and review base-image
 updates deliberately rather than treating a future rebuild as identical.
@@ -44,8 +45,8 @@ records metadata and locations of upstream license files, not a legal clearance.
 - Before either a download release or public service, obtain a determination of
   the relevant AGPL/other obligations for this integration, then choose a
   compliant licensing/source-distribution route or a suitable alternate license.
-  Merely adding attribution notices is not necessarily sufficient. A private
-  GitHub repository is not itself a determination of compliance.
+  Merely adding attribution notices or making the repository public is not
+  itself a determination of compliance.
 
 Primary upstream sources:
 [PM4Py licensing](https://processintelligence.solutions/pm4py/),

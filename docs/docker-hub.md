@@ -6,6 +6,7 @@ Developed at the Chair of Process and Data Science (PADS), RWTH Aachen Universit
 
 ## Run ZoneMiner
 
+The image supports ARM64 (including Apple Silicon) and AMD64 (Intel and AMD computers).
 Install Docker, then run the image:
 
 ```sh
@@ -25,6 +26,10 @@ Open [http://127.0.0.1:7860](http://127.0.0.1:7860) and select **Load demo datas
 The included demo and example scenarios can be explored without obtaining external event logs. ZoneMiner has also been evaluated using five public-log case studies. External logs are not redistributed with the image.
 
 Prediction is retrospective research functionality, and associations do not establish causality. Difficult alignments can require substantial time and memory.
+
+## Source and screencast
+
+The [source code and evaluation reports](https://github.com/alexandramilanova/zoneminer) are available on GitHub. Watch the [tool screencast](https://youtu.be/kXSjLgR6VUk).
 
 ## License
 
