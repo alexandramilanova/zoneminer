@@ -10,13 +10,10 @@ Developed at the Chair of Process and Data Science (PADS), RWTH Aachen Universit
 ## Run with Docker
 
 Docker is the simplest local installation; host Python and Node installations
-are not required. Repository access is currently required to clone the source.
+are not required. Get the image from [Docker Hub](https://hub.docker.com/r/alexandramilanova/zoneminer).
 
 ```sh
-git clone https://github.com/alexandramilanova/zoneminer.git
-cd zoneminer
-docker build -t zoneminer .
-docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zoneminer-data:/app/var zoneminer
+docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zoneminer-data:/app/var alexandramilanova/zoneminer:latest
 ```
 
 Open [http://127.0.0.1:7860](http://127.0.0.1:7860), then choose **Load demo dataset**
@@ -60,8 +57,7 @@ alongside the five-zone order-fulfillment demo.
 
 ## Access and resources
 
-The submission uses the Docker installation described above. Reviewer access to
-the image is to be arranged. Difficult alignment problems can take substantial
+The submission uses the Docker installation described above. Difficult alignment problems can take substantial
 time and memory. There is no default fixed upload-size or event-count cap, but
 available resources limit what can finish.
 

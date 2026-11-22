@@ -2,7 +2,7 @@
 # Demo analyses are precomputed during the image build.
 
 # --- frontend build stage ---
-FROM node:22-slim AS frontend
+FROM --platform=$BUILDPLATFORM node:22-slim AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
