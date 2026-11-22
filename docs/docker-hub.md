@@ -6,10 +6,10 @@ Developed at the Chair of Process and Data Science (PADS), RWTH Aachen Universit
 
 ## Run ZoneMiner
 
-Install Docker, then run the image (replace `<docker-hub-username>` with the account hosting the image):
+Install Docker, then run the image:
 
 ```sh
-docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zoneminer-data:/app/var <docker-hub-username>/zoneminer:latest
+docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zoneminer-data:/app/var alexandramilanova/zoneminer:latest
 ```
 
 Open [http://127.0.0.1:7860](http://127.0.0.1:7860) and select **Load demo dataset**, or upload an uncompressed XES or CSV event log. You can also upload a PNML model. Stop the container with Ctrl+C and restart it with `docker start zoneminer`. The named volume preserves your data.
