@@ -1,11 +1,9 @@
 # Temporary anonymous workspaces
 
-This describes the application's runtime contract. The current private
-[Hugging Face deployment](hugging-face.md) uses anonymous workspaces inside the
-provider's access-controlled Space; visitors do not create ZoneMiner accounts.
-The default `ZONE_ANALYTICS_MODE=local` retains the existing persistent local
-workspace. It is intended for a trusted local installation. The explicit
-`anonymous` mode isolates visitors and expires their data.
+This describes the optional anonymous runtime mode. The submission uses a local
+Docker installation with the default `ZONE_ANALYTICS_MODE=local`, which retains
+the persistent local workspace. The explicit `anonymous` mode isolates visitors
+and expires their data if the application is deployed separately.
 
 ## Isolation and lifecycle
 
@@ -15,9 +13,9 @@ SameSite=Strict and Secure by default. Anonymous mode needs HTTPS; the
 The browser bootstraps one session before making concurrent API requests.
 
 Behind a reverse proxy, set `ZONE_ANALYTICS_PUBLIC_ORIGIN` to the exact external
-app origin, such as `https://alexandramilanova-zoneminer.hf.space`. Mutating browser
-requests must match this origin even if the internal request URL differs. Other
-origins, including other Spaces and localhost, remain rejected when configured;
+app origin, such as `https://example.org`. Mutating browser requests must match
+this origin even if the internal request URL differs. Other origins, including
+localhost, remain rejected when configured;
 forwarded headers do not add trusted origins. Without this setting, direct
 same-origin access and the local Vite development origins retain their defaults.
 
@@ -53,11 +51,9 @@ model semantics and timestamp validation remain required; no records are silentl
 truncated. This does not mean every log will fit in RAM or finish in a practical
 time. Anonymous work still ends when its session expires or is deleted.
 
-The hosted service shares finite compute resources and queues intensive work.
-For full performance on large logs or repeated experiments, use the local
-installation on a machine with sufficient CPU, RAM and disk. Local mode retains
-data across runs and avoids the hosted service's session expiry and shared
-compute queue; it still has the physical limits of the local machine.
+An anonymous deployment can share finite compute resources and queue intensive
+work. Local mode retains data across runs and still has the physical limits of
+the local machine.
 
 These defaults are configurable with the `ZONE_ANALYTICS_` prefix. For optional
 policy caps, zero means disabled; a positive number opts into a deployment policy:

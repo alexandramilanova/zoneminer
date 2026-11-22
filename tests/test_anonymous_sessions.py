@@ -96,7 +96,7 @@ class AnonymousSessionsTests(unittest.TestCase):
             self.assertEqual(response.status_code, 413, response.text)
 
     def test_explicit_public_origin_supports_proxy_and_rejects_other_origins(self):
-        origin = "https://alexandramilanova-zoneminer.hf.space"
+        origin = "https://zoneminer.example.org"
         with patch.dict(os.environ, {"ZONE_ANALYTICS_PUBLIC_ORIGIN": origin}):
             with closing(TestClient(self.app, base_url="http://internal-proxy:7860")) as client:
                 demo = client.get("/api/demo").json()
@@ -105,17 +105,17 @@ class AnonymousSessionsTests(unittest.TestCase):
                 response = client.post(path, json=body, headers={"Origin": origin})
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertTrue(response.json()["valid"])
-                for other in ("https://other.example", "https://another-space.hf.space",
+                for other in ("https://other.example", "https://another.example.org",
                               "http://internal-proxy:7860", "http://localhost:5173", "null"):
                     response = client.post(path, json=body, headers={
-                        "Origin": other, "X-Forwarded-Host": "alexandramilanova-zoneminer.hf.space",
+                        "Origin": other, "X-Forwarded-Host": "zoneminer.example.org",
                         "X-Forwarded-Proto": "https"})
                     self.assertEqual(response.status_code, 403, (other, response.text))
 
     def test_public_origin_configuration_is_exact(self):
         with patch.dict(os.environ, {"ZONE_ANALYTICS_PUBLIC_ORIGIN": "https://Example.org/"}):
             self.assertEqual(config.public_origin(), "https://example.org")
-        for value in ("*", "null", "https://*.hf.space", "https://example.org/path",
+        for value in ("*", "null", "https://*.example.org", "https://example.org/path",
                       "https://example.org?query=1", "https://example.org#fragment",
                       "https://user:password@example.org", "https://example.org:bad",
                       "https://one.example,https://two.example"):

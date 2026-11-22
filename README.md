@@ -1,9 +1,3 @@
----
-title: ZoneMiner
-sdk: docker
-app_port: 7860
----
-
 # ZoneMiner
 
 ZoneMiner explores business processes through **zones**: groups of Petri-net
@@ -64,23 +58,12 @@ Four small bundled scenarios illustrate express-lane overtaking, batch dispatch,
 review and rework, and a capacity bottleneck. They are available in the workspace
 alongside the five-zone order-fulfillment demo.
 
-## Hosted application
+## Access and resources
 
-The [Hugging Face Space](https://huggingface.co/spaces/alexandramilanova/zoneminer)
-and [direct application](https://alexandramilanova-zoneminer.hf.space) are currently
-private; access requires permission from the owner. The GitHub repository also
-currently requires access. These links do not yet provide anonymous reviewer access.
-
-Local Docker installation is recommended for large logs or intensive analysis.
-The hosted service shares finite CPU, memory and temporary storage; difficult
-alignment problems can take substantial time on either installation. There is no
-default fixed upload-size or event-count cap, but available resources still limit
-what can finish.
-
-Hosted visitor workspaces expire after 24 hours and may be lost on restart or
-rebuild. Download results you want to keep. See the
-[deployment guide](docs/hugging-face.md) and
-[anonymous workspace contract](docs/anonymous-workspaces.md).
+The submission uses the Docker installation described above. Reviewer access to
+the image is to be arranged. Difficult alignment problems can take substantial
+time and memory. There is no default fixed upload-size or event-count cap, but
+available resources limit what can finish.
 
 ## Public-log evaluation
 
