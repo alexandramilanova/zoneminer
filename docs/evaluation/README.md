@@ -1,43 +1,140 @@
-# Selected cross-zone flow associations
+# Public-log case studies
 
-This report publishes **only rows with |r| > 0.65**, in either direction. The threshold is a presentation filter, not a criterion for a successful tool run or proof of a useful or causal relationship. Nine full public event logs completed the analysis pipeline (187,214 cases; 834,858 events). The published association rows meet the stated filter. Scan counts below disclose the selection scope, including logs without a selected row.
+The evaluation uses five complete public logs and targeted, process-informed
+zones. Each case study contains its fixed model, zone definitions, aggregate
+measurements, event-level checks and limitations:
 
-## Selection protocol
+- [International travel reimbursements](#international-travel-reimbursements):
+  payment timing and the interpretation of a parallel model branch.
+- [Prepaid travel costs](prepaid-case/README.md): permit submission and the
+  next administrative event.
+- [IT incidents](incidents-case/README.md): queued statuses and the following
+  recorded event.
+- [Sepsis cases](sepsis-case/README.md): within-case intervals from sepsis triage
+  to a recorded antibiotic event.
+- [Loan applications](loan2012-case/README.md): repeated offers and the interval
+  between their recorded creation and sending.
 
-- Source: **daily case entries** (`case_enter`) in one zone. Target: **daily case exits** (`case_exit`) in a different zone.
-- Search lags: **1–7 daily windows**. A positive lag compares source entries on one day with target exits that many days later.
-- For each ordered pair of different zones, keep the lag with the largest absolute Pearson correlation, choosing the smaller lag on an exact tie. Require at least **8 paired daily windows** and nonconstant series.
-- Publish the pair only when **|r| > 0.65**. Both positive and negative values are eligible. Below-threshold coefficients are not published.
-- CSVs contain the signed coefficient, selected lag, number of paired windows, and the number of source/target windows with nonzero flow. Daily windows with zero activity remain part of the calculation; long quiet periods can affect correlation.
-- Nominal p-values use the usual Pearson t approximation, multiplied by seven for the lag search and capped at one. Nominal Benjamini–Hochberg q-values cover **all valid ordered zone pairs within each log, before filtering**. These are provided as exploratory diagnostics; they do not adjust for serial dependence and are not the publication filter. The values do not establish causality or independent validation.
+## International travel reimbursements
 
-These scans use connected structural groups of at most five places, not domain-validated zone definitions. Source timestamps and activity labels were retained. Import orders events chronologically within a case, preserving file order for equal timestamps. Full logs were used without case or event sampling. Model discovery used the application's default Inductive Miner; replay used Rust4PM; measurements used daily windows.
+How are payments handled after a travel declaration has been approved, and what
+can a model-based token duration tell us about that stage? We study the complete
+[BPI 2020 International Declarations log](https://doi.org/10.4121/uuid:2bbf8f6a-fc50-48eb-aa9e-c4ea5ef7e8c5): 6,449 cases and 72,151 events, with no case or event sampling. The
+[challenge organizers' process description](https://www.tf-pm.org/competitions-awards/bpi-challenge/2020)
+explains that payment is requested and made after approval, and explicitly asks
+about throughput of the individual process steps. This motivates the two
+payment-related zones and the event-level checks below.
 
-## Published selection
+### Zone definitions
 
-| Public log | Cases | Events | Valid zone pairs scanned | Selected pairs | Export |
-| --- | ---: | ---: | ---: | ---: | --- |
-| [BPI 2020: Prepaid Travel Costs](https://doi.org/10.4121/uuid:5d2fe5e1-f91f-4a3b-ad9b-9e4126870165) | 2,099 | 18,246 | 182 | 26 | [CSV](prepaid/selected-correlations.csv) |
-| [BPI 2020: Request for Payment](https://doi.org/10.4121/uuid:895b26fb-6f25-46eb-9e48-0dca26fcd030) | 6,886 | 36,796 | 64 | 21 | [CSV](payment/selected-correlations.csv) |
-| [BPI 2020: Domestic Declarations](https://doi.org/10.4121/uuid:3f422315-ed9d-4882-891f-e180b5b4feb5) | 10,500 | 56,437 | 49 | 23 | [CSV](domestic/selected-correlations.csv) |
-| [BPI 2020: International Declarations](https://doi.org/10.4121/uuid:2bbf8f6a-fc50-48eb-aa9e-c4ea5ef7e8c5) | 6,449 | 72,151 | 529 | 226 | [CSV](international/selected-correlations.csv) |
-| [Sepsis Cases](https://doi.org/10.4121/uuid:915d2bfb-7e84-49ad-a286-dc35f063a460) | 1,050 | 15,214 | 121 | 0 | No selected rows |
-| [Road Traffic Fines](https://doi.org/10.4121/uuid:270fd440-1057-4fb9-89a9-b699b47990f5) | 150,370 | 561,470 | 49 | 2 | [CSV](traffic-fines/selected-correlations.csv) |
-| [BPI 2013: Closed Problems](https://doi.org/10.4121/uuid:c2c3b154-ab26-4b31-a0e8-8f2350ddac11) | 1,487 | 6,660 | 20 | 3 | [CSV](bpic13closed/selected-correlations.csv) |
-| [BPI 2013: Open Problems](https://doi.org/10.4121/uuid:3537c19d-6c64-4b1d-815d-915ab0e479da) | 819 | 2,351 | 16 | 7 | [CSV](bpic13open/selected-correlations.csv) |
-| [BPI 2013: Incidents](https://doi.org/10.4121/uuid:500573e6-accc-4b0c-9576-aa5468b10cee) | 7,554 | 65,533 | 16 | 16 | [CSV](bpic13incidents/selected-correlations.csv) |
+We use the fixed [discovered Petri net](international-case/model.pnml) and the
+[zone configuration](international-case/zones.json). The **Payment request
+branch** consists of place `p_118`, which directly precedes `Request Payment`;
+the **Payment handled branch** consists of place `p_120`, which directly
+precedes `Payment Handled`. Both are single-place, connected, disjoint zones.
+They are deliberately narrow process checkpoints: 91 of the model's 93 places
+are unassigned, so the zones do not partition the entire reimbursement process.
+The model also permits silent bypasses and parallel behavior. A token in a
+place is a model-based state, not proof that a person is actively working or
+that the corresponding recorded event will necessarily occur. For the broader
+token-flow perspective, see [van der Aalst et al., *Visualizing Token Flows
+Using Interactive Performance Spectra*](https://pmc.ncbi.nlm.nih.gov/articles/PMC7324234/).
 
-The selection contains **324 associations from 1,046 valid ordered zone pairs**. These are multiple descriptive views of the logs, not 324 independent discoveries. Structurally related zones can share flow patterns. The same source–target pair is represented once at its chosen lag.
+The zone choice follows the organizers' description and the named transitions
+in this specific discovered model. It is **not** claimed to reproduce Bittu
+Chauhan's thesis split or to be domain-expert validation. Place identifiers are
+model-specific; the supplied PNML is necessary to interpret or reproduce them.
 
-## Reproduce and inspect
+### Findings
 
-`correlation-summary.json` records counts and selection parameters for every scanned log. Each published log directory contains the exact place grouping (`zones.json`), input hash and source DOI (`provenance.json`), and only the selected association rows (`selected-correlations.csv`). Original logs, below-threshold correlations, and raw feature tables are not redistributed here.
+1. **Payment handling is strongly concentrated on two weekdays.** Of the 6,187
+   recorded `Payment Handled` events, 2,656 occurred on Monday and 3,484 on
+   Thursday: 6,140 (99.2%) combined. The pattern holds in both major years:
+   1,262 of 1,263 events in 2017 and 4,719 of 4,764 in 2018. Event times are recorded in UTC; these
+   events fall well away from midnight. This is consistent with a scheduled
+   processing rhythm, but the log alone cannot establish the operational cause.
+   The full [year-by-weekday counts](international-case/results/handled-weekdays.csv)
+   and [minute-of-day counts](international-case/results/handled-minutes-utc.csv)
+   make the pattern inspectable.
+2. **Recorded payment turnaround is around three days for the paired cases.**
+   Among 6,183 cases with both event types and a completed handled-branch stay,
+   the median from the first `Request Payment` to the first `Payment Handled`
+   event is 3.22 calendar days; the 90th percentile is 4.91 days. The medians
+   are 3.17 days for 1,279 requests in 2017 and 3.23 days for 4,799 in 2018.
+   This is a descriptive comparison, not a causal estimate or a claim that all
+   cases followed the same process. Three paired cases have a handled event
+   before their first request; they are retained in the summary. The organizers
+   note that 2017 was a pilot covering only two departments, while 2018 covered
+   the full institution, so these cohorts are not directly comparable as a
+   controlled before-and-after experiment.
+3. **The model-based duration measures a broader interval.** For the same
+   paired cases, the handled-branch median stay is 5.34 days, and the median
+   entry precedes the recorded request by 1.18 days. Only 114 entries are within
+   one second of the request; all 6,183 exits match `Payment Handled` within
+   one second. This discovered model enables the two payment branches in
+   parallel, so interpreting the 5.34-day stay as the time *after* requesting
+   payment would be misleading. This comparison illustrates why inspecting
+   zone boundaries and events is essential when interpreting replayed tokens.
 
-Use application commit `23da351195144e1a30c3deb30d455ef09926c7a1`, with PM4Py 2.7.23.11 and the dependencies from that checkout. The experiments used Linux aarch64 in `zoneminer-submission-ready:local` (image `sha256:cc2e9a115e3e62be4d7d89c865f4de8db0154b0a75c6bc1b21da36ed2d39ef0e`).
+The [summary table](international-case/results/payment-summary.csv) gives the
+paired sample sizes and year-level statistics. The
+[weekly zone measurements](international-case/results/weekly-zone-metrics.csv)
+show the underlying application output. Window boundaries are in UTC; case
+duration percentiles are measured in seconds for stays completed in each
+window. These results describe one historical
+log and one discovered model; they do not validate operational usefulness with
+process owners, establish causality, or measure interactive performance.
 
-1. Download the original publisher XES files from the DOI links and decompress them. Confirm the SHA-256 recorded in the corresponding provenance file. The published script uses short filenames such as `international.xes` and `bpic13incidents.xes`.
-2. In the application Docker runtime, mount the application checkout read-only at `/app`, logs at `/logs`, and a writable copy of this report directory at `/results`.
-3. Run `python /results/run_public_logs.py /logs/NAME.xes` for each input to regenerate the complete local zone-feature tables. Use `OMP_NUM_THREADS=1` and `OPENBLAS_NUM_THREADS=1`. No persisted replay cache is used by this script. Record environment and model identities; discovery/library versions may change generated place names.
-4. Run `python /results/select_correlations.py` to regenerate the selected CSVs and counts. It reads the supplied `correlation-summary.json` as its input manifest when `results.json` is absent, and verifies up to five selected examples per log against the unchanged application's `lagged_best_corr` function.
+### Reproduce
 
-The complete local measurements were retained for the paper's verification. This curated online selection is explicitly filtered and should not be interpreted as the full distribution of association strengths or a comparison of tool performance across datasets.
+The original event log is not redistributed. Download and decompress the
+International Declarations XES from the [challenge page](https://www.tf-pm.org/competitions-awards/bpi-challenge/2020)
+or its dataset DOI above. The script verifies the exact SHA-256 input hash in
+[provenance](international-case/results/provenance.json), loads the supplied
+PNML and zones, performs Rust4PM alignment and ZoneMiner replay on every case,
+then produces the aggregate tables and checks against recorded events. It uses
+7-day windows for the exported zone measurements; the case-level results use
+individual timestamps rather than correlations or selected lags.
+
+From a checkout with a built `zoneminer` Docker image, for example:
+
+```sh
+mkdir -p evaluation-output
+# Replace /absolute/path/InternationalDeclarations.xes with the downloaded file.
+docker run --rm -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 \
+  -v /absolute/path/InternationalDeclarations.xes:/input/log.xes:ro \
+  -v "$(pwd)/evaluation-output:/output" zoneminer \
+  python docs/evaluation/international-case/analyze.py /input/log.xes --output /output
+```
+
+The run used Linux ARM64, Python 3.12, PM4Py 2.7.23.11 and Rust4PM 0.6.0.post1,
+with the repository's locked dependencies. The model was discovered using the
+application's default Inductive Miner and is frozen here because rediscovery
+may assign different place identifiers. The output directory must be writable by
+the image's non-root user. The source log, case-level records and replay cache are
+not included; only aggregate results are published.
+
+## Reproducing the additional case studies
+
+Download and decompress the publisher XES using the links in each study. Build
+the application image from this checkout using `docker build -t zoneminer .`.
+Use the appropriate study name (`incidents`, `prepaid`, `sepsis` or `loan2012`) and replace the log
+path below with its absolute path. The output directory must be writable by the
+image's non-root user. Use a separate output directory for each study so files
+from different runs are not mixed:
+
+```sh
+mkdir -p evaluation-output/incidents
+docker run --rm -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 \
+  -v /absolute/path/log.xes:/input/log.xes:ro \
+  -v "$(pwd)/evaluation-output/incidents:/output" zoneminer \
+  python docs/evaluation/run_case_study.py incidents /input/log.xes --output /output
+```
+
+The script checks the input SHA-256, validates the fixed zones, replays every
+case, and writes only aggregate data. Like the first study, these runs used
+Linux ARM64, Python 3.12, PM4Py 2.7.23.11 and Rust4PM 0.6.0.post1. Do not
+rediscover the model when reproducing: generated place identifiers may change.
+The Sepsis log has anonymized calendar timestamps, so its published results
+exclude calendar-based and cross-case time-window comparisons. The larger loan
+log requires substantially more memory and time than the smaller case studies.

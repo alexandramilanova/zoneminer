@@ -1,0 +1,12 @@
+{
+  "trigger": "O_CREATED",
+  "target": "O_SENT",
+  "trigger_events": 7030,
+  "paired_events": 7030,
+  "paired_cases": 5015,
+  "count": 7030,
+  "median_days": 4.0509259259259263e-07,
+  "p90_days": 9.143518518518518e-07,
+  "matched_occurrences": 7030,
+  "exit_within_1_second_of_target": 7030
+}

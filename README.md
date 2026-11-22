@@ -84,14 +84,11 @@ rebuild. Download results you want to keep. See the
 
 ## Public-log evaluation
 
-Nine complete public event logs were analyzed, covering **187,214 cases and
-834,858 events**, without case or event sampling. The
-[evaluation report](docs/evaluation/README.md) provides source DOI links,
-configurations, provenance, selected cross-zone associations and reproduction
-instructions. It explains the selection protocol and its limitations; the
-published associations are a curated selection, not the complete distribution
-or a benchmark of interactive response times. External event logs are not
-redistributed with the application.
+The [evaluation report](docs/evaluation/README.md) presents five case studies
+using complete public logs: international reimbursements, prepaid travel costs,
+IT incidents, sepsis cases and loan applications. Each uses process-informed zones, reports specific findings,
+compares replay with recorded events, and provides a reproducible configuration.
+The external event logs are not redistributed with the application.
 
 ## Source installation
 

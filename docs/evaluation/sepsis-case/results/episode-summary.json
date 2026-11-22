@@ -1,0 +1,11 @@
+{
+  "trigger": "ER Sepsis Triage",
+  "trigger_events": 1049,
+  "trigger_cases": 1049,
+  "count": 1000,
+  "median_days": 0.006655092592592593,
+  "p90_days": 0.026201388888888892,
+  "matched_occurrences": 1049,
+  "entry_within_1_second": 1049,
+  "exit_within_1_second_of_next_event": 163
+}

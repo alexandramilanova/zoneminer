@@ -1,0 +1,12 @@
+{
+  "source_doi": "10.4121/uuid:5d2fe5e1-f91f-4a3b-ad9b-9e4126870165",
+  "log_sha256": "fa88510a5b55ed329ebb014370dd6631db7f93b1b01cc378cc2f95296ea5ea9c",
+  "model_sha256": "91a739175f39d4a825277eb3b58a5a8af10937d85aa40e5236721918f30a6d84",
+  "cases": 2099,
+  "events": 18246,
+  "token_intervals": 115762,
+  "alignment_cases": 2099,
+  "alignment_backend": "r4pm",
+  "timeframe": "7D",
+  "unassigned_places": 56
+}

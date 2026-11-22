@@ -1,0 +1,11 @@
+{
+  "trigger": "Queued",
+  "trigger_events": 11544,
+  "trigger_cases": 4511,
+  "count": 11544,
+  "median_days": 0.02443287037037037,
+  "p90_days": 2.292998842592593,
+  "matched_occurrences": 11544,
+  "entry_within_1_second": 11544,
+  "exit_within_1_second_of_next_event": 4480
+}

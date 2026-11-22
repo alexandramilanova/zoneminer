@@ -1,0 +1,17 @@
+{
+  "source_doi": "10.4121/uuid:2bbf8f6a-fc50-48eb-aa9e-c4ea5ef7e8c5",
+  "log_sha256": "381e793931dbe8c393e7504ec98d66172eb9ba89802d97652c054cd61036598e",
+  "model_sha256": "c824dd3a9dc258e2241aad98f93e6474a5af70da51a19ad170edb5c84ef37fa7",
+  "cases": 6449,
+  "events": 72151,
+  "token_intervals": 424655,
+  "alignment_cases": 6449,
+  "alignment_backend": "r4pm",
+  "timeframe": "7D",
+  "unassigned_places": 91,
+  "paired_cases": 6183,
+  "zone_stays": {
+    "Payment handled branch": 6187,
+    "Payment request branch": 6187
+  }
+}

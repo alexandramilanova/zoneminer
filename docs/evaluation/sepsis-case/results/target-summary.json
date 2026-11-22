@@ -1,0 +1,12 @@
+{
+  "trigger": "ER Sepsis Triage",
+  "target": "IV Antibiotics",
+  "trigger_events": 1049,
+  "paired_events": 823,
+  "paired_cases": 823,
+  "count": 823,
+  "median_days": 0.06392361111111111,
+  "p90_days": 0.1640995370370371,
+  "matched_occurrences": 823,
+  "exit_within_1_second_of_target": 823
+}

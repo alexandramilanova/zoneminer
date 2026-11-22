@@ -1,0 +1,4 @@
+next_event,trigger_events,count,median_days,p90_days
+Accepted,10729,10729,0.030127315,2.399500000
+Queued,777,777,0.000011574,0.007884259
+Completed,38,38,0.351342593,12.718030093

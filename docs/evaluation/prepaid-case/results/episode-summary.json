@@ -1,0 +1,11 @@
+{
+  "trigger": "Permit SUBMITTED by EMPLOYEE",
+  "trigger_events": 1952,
+  "trigger_cases": 1859,
+  "count": 1952,
+  "median_days": 5.787037037037037e-05,
+  "p90_days": 0.001574074074074074,
+  "matched_occurrences": 1952,
+  "entry_within_1_second": 1952,
+  "exit_within_1_second_of_next_event": 1641
+}
