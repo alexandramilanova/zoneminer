@@ -9,8 +9,10 @@ Developed at the Chair of Process and Data Science (PADS), RWTH Aachen Universit
 
 ## Run with Docker
 
-Docker is the simplest local installation; host Python and Node installations
-are not required. Get the image from [Docker Hub](https://hub.docker.com/r/alexandramilanova/zoneminer).
+Install and start [Docker Desktop](https://www.docker.com/products/docker-desktop/);
+host Python and Node installations are not required. On Windows, Docker Desktop
+may require WSL 2 and a restart; follow the [Windows installation guide](https://docs.docker.com/desktop/setup/install/windows-install/).
+Get the image from [Docker Hub](https://hub.docker.com/r/alexandramilanova/zoneminer).
 
 The image supports ARM64 (including Apple Silicon) and AMD64 (Intel and AMD computers).
 
@@ -21,6 +23,7 @@ docker run --name zoneminer -p 127.0.0.1:7860:7860 -v zoneminer-data:/app/var al
 Open [http://127.0.0.1:7860](http://127.0.0.1:7860), then choose **Load demo dataset**
 or upload your own log. Keep the terminal running while using the application.
 Stop it with Ctrl+C; restart the existing container with `docker start zoneminer`.
+The restarted container runs in the background; stop it with `docker stop zoneminer`.
 
 The named volume retains uploads, analyses and discovered models across container
 replacement. Keep it when upgrading the image. A new, empty named volume receives
@@ -31,6 +34,8 @@ the image's precomputed demo store; an empty host bind mount can hide that store
 1. Load the bundled demo or upload an uncompressed XES or CSV event log. You may
    also upload a PNML Petri net. For a log without a model, choose the discovery
    noise threshold; the model can be rediscovered later without changing the log.
+   CSV files must contain `case_id`, `concept:name` (activity), and
+   `time:timestamp` columns, with a valid timestamp for every event.
 2. Define zones by selecting places in the model. The zone overview shows each
    zone's size and total place coverage; click a zone to edit it. Zones must be
    disjoint and connected. Activity-label suggestions can help with selection.
